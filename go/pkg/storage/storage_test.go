@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/larklaflamme/arxdb/go/pkg/hashing"
@@ -225,4 +226,46 @@ func TestLogGetDecodeRoundTrip(t *testing.T) {
 	if !s.Log().VerifyEntry(got) {
 		t.Fatalf("decoded entry does not verify")
 	}
+}
+
+func TestCommitEdgeTxFaultInjection(t *testing.T) {
+	// The atomicity guarantee: a failure after the graph edge and log entry are
+	// written to the batch but before the batch is committed must leave zero
+	// partial state. This is the cross-process analogue of the Python
+	// test_atomic_on_failure / test_atomic_on_log_failure tests, and it is the
+	// guard against Failure mode 2 (CommitEdge implemented as multiple RPCs).
+	priv, pub := testKeypair(t)
+	s, err := Open(t.TempDir(), priv, pub)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer s.Close()
+
+	premise := hashing.HashBytes([]byte("p"))
+	conclusion := hashing.HashBytes([]byte("c"))
+	edgeData := []byte("edge")
+
+	testHookCommitEdgeTx = func() error { return errors.New("injected fault") }
+	defer func() { testHookCommitEdgeTx = nil }()
+
+	_, _, err = s.CommitEdgeTx([]hashing.Hash{premise}, conclusion, edgeData, nil)
+	if err == nil {
+		t.Fatal("expected injected fault")
+	}
+
+	// Zero partial state: the graph has no edge, the log is empty.
+	edgeHash := hashing.HashBytes(edgeData)
+	_, _, ok, err := s.Graph().GetConnectivity(edgeHash)
+	if err != nil {
+		t.Fatalf("GetConnectivity: %v", err)
+	}
+	if ok {
+		t.Fatal("graph edge visible after failed commit")
+	}
+	n, _ := s.Log().Len()
+	if n != 0 {
+		t.Fatalf("log length %d after failed commit, want 0", n)
+	}
+	// The object blob is orphaned (idempotent, harmless) — that is expected and
+	// matches the Python contract, so we do not assert its absence.
 }

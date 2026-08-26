@@ -16,6 +16,12 @@ import (
 // and the graph mutation + log append happen inside a single indexed batch
 // (the cross-process analogue of Python's BEGIN IMMEDIATE ... COMMIT). The
 // ObjectStore write is idempotent, so an orphaned blob is harmless.
+// testHookCommitEdgeTx, when non-nil, is invoked after the graph edge and log
+// entry are written to the batch but before the batch is committed. It lets
+// tests inject a failure to verify that a failed commit leaves zero partial
+// state (the atomicity guarantee). It is nil in production.
+var testHookCommitEdgeTx func() error
+
 type Storage struct {
 	root    string
 	objects *ObjectStore
@@ -94,6 +100,11 @@ func (s *Storage) CommitEdgeTx(
 	entry, err := s.log.appendInBatch(b, edgeData)
 	if err != nil {
 		return edgeHash, nil, err
+	}
+	if testHookCommitEdgeTx != nil {
+		if err := testHookCommitEdgeTx(); err != nil {
+			return edgeHash, nil, err
+		}
 	}
 	if err := b.Commit(nil); err != nil {
 		return edgeHash, nil, err
