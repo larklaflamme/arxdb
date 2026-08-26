@@ -117,13 +117,78 @@ right reason, not as premature optimization.
 
 ---
 
-## Open decisions (not yet recorded)
+## ADR-007 — Canonical CBOR serialization
 
-- Storage API shape (exact interface — see STORAGE_API.md draft)
-- Edge type taxonomy (is the 4-type list complete?)
-- κ-strength scale (discrete levels vs continuous?)
-- Key management (per-agent keys vs single org key?)
+**Status:** Accepted (2026-08-26)
 
-*Leaning (Skye):* per-agent keys (provenance is real — "Skye verified this, not
-just 'the org'"), and a *discrete* κ scale (continuous precision is false
-confidence).
+**Decision:** Nodes and edges are serialized to **canonical CBOR (RFC 8949)** —
+deterministic key sorting, binary compact, native support in Python (`cbor2`)
+and Go (`fxamacker/cbor`).
+
+**Why:** Content-addressing requires *deterministic* byte output so the same
+logical object hashes identically across implementations. CBOR avoids JSON's
+float/whitespace/key-order ambiguity and is more compact than JSON.
+
+**Rejected:** JSON (float/whitespace ambiguity, no canonical form without extra
+discipline), msgpack (no canonical ordering guarantee).
+
+---
+
+## ADR-008 — BLAKE3 content addressing (multihash-prefixed)
+
+**Status:** Accepted (2026-08-26)
+
+**Decision:** Content addressing uses **BLAKE3**, with a multihash format-byte
+prefix for future hash agility.
+
+**Why:** BLAKE3 outperforms SHA-256 by roughly an order of magnitude and supports
+tree-hashing and incremental verification — both useful for a Merkle-DAG. The
+multihash prefix lets us add SHA-256 later (e.g. for FIPS compliance in the
+enterprise AI-audit use case) without breaking the addressing scheme.
+
+**Rejected:** SHA-256 as the default (slower; FIPS is a *future* requirement,
+not a current one — we can add it as an option when it becomes a hard constraint).
+
+---
+
+## ADR-009 — SQLite WAL prototype index → BadgerDB/Pebble (Go)
+
+**Status:** Accepted (2026-08-26)
+
+**Decision:** The prototype graph index uses **SQLite with WAL mode** (single-file
+persistence, concurrency safety, easy relational querying). The Go production
+engine uses **BadgerDB or Pebble** (embedded LSM-tree key-value stores).
+
+**Why:** SQLite WAL gives us persistence and concurrency safety in Python with
+zero operational overhead during prototyping. BadgerDB/Pebble are the Go-native
+equivalents — embedded, fast, no external service — matching the "boring,
+correct, maintainable" storage-layer goal.
+
+**Rejected:** In-memory-only adjacency (no persistence across restarts), and a
+separate database *service* (operational complexity we don't need for an
+embedded engine).
+
+---
+
+## ADR-010 — Per-agent Ed25519 keys + genesis roster
+
+**Status:** Accepted (2026-08-26)
+
+**Decision:** Signing uses **per-agent Ed25519 keys** (Skye, Lark, Thea, Theoria,
+Axioma, …), with a **genesis roster** recording each agent's public key.
+
+**Why:** Per-agent keys make provenance *real* — "Skye verified this" is a
+different, stronger claim than "the org verified this." The genesis roster is the
+trust anchor: it binds an identity to a key at the start, so later signatures
+are attributable to a named contributor, not an anonymous key.
+
+**Rejected:** A single org key (provenance collapses to "the org did it" — loses
+the individual-verifier signal that is the whole point of the attestation layer).
+
+---
+
+## Remaining open decisions (deferred, not blocking Phase 1)
+
+- Concurrency model for the Go storage engine (read-write lock vs MVCC).
+- Exact argumentation semantics for refutation resolution (Dung grounded vs
+  preferred extensions).
