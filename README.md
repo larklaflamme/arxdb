@@ -38,15 +38,15 @@ The hop count is a **lower bound** on difficulty, never a prediction. It tells y
 
 ```
 ┌─────────────────────────────────────────────────┐
-│  Query Layer (reachability, path discovery)      │
+│  Query Layer (reachability, path discovery)     │
 ├─────────────────────────────────────────────────┤
-│  Verification Layer (Python — the moat)          │
-│  ELENCHUS predicates · κ-tiering · proof checks  │
-│  sympy · mpmath · z3 · Lean bindings             │
+│  Verification Layer (Python — the moat)         │
+│  ELENCHUS predicates · κ-tiering · proof checks │
+│  sympy · mpmath · z3 · Lean bindings            │
 ├─────────────────────────────────────────────────┤
-│  Storage Layer (Go — the engine)                 │
-│  content-addressed Merkle-DAG · signed log       │
-│  graph traversal · concurrency                   │
+│  Storage Layer (Go — the engine)                │
+│  content-addressed Merkle-DAG · signed log      │
+│  graph traversal · concurrency                  │
 └─────────────────────────────────────────────────┘
 ```
 
