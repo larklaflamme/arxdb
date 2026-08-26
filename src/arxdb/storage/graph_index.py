@@ -130,3 +130,27 @@ class GraphIndex:
         ).fetchall()
         premises = [Hash(r[0]) for r in prem_rows]
         return (premises, conclusion)
+
+    def all_nodes(self) -> list[Hash]:
+        """All indexed node hashes in deterministic order (Phase 3 pre-work).
+
+        Structural enumeration only — no semantic traversal. This is the
+        primitive the query layer uses to discover the seed set and iterate
+        the graph without reaching into storage internals.
+        """
+        rows = self._conn.execute(
+            "SELECT node_hash FROM nodes ORDER BY node_hash"
+        ).fetchall()
+        return [Hash(r[0]) for r in rows]
+
+    def all_edges(self) -> list[Hash]:
+        """All indexed edge hashes in deterministic order (Phase 3 pre-work).
+
+        Structural enumeration only — no semantic traversal. The query layer
+        uses this to iterate every edge (to find zero-premise seeds and to run
+        the AND-OR fixpoint) without reaching into storage internals.
+        """
+        rows = self._conn.execute(
+            "SELECT edge_hash FROM edges ORDER BY edge_hash"
+        ).fetchall()
+        return [Hash(r[0]) for r in rows]
