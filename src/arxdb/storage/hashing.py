@@ -14,6 +14,8 @@ Public API (Phase 1):
 
 from __future__ import annotations
 
+import blake3
+
 # Multihash constants
 BLAKE3_CODE = 0x1E
 BLAKE3_LEN = 0x20
@@ -34,19 +36,24 @@ class Hash(bytes):
 
 def hash_bytes(data: bytes) -> Hash:
     """Return the 34-byte BLAKE3 multihash of `data`."""
-    raise NotImplementedError
+    digest = blake3.blake3(data).digest()
+    return Hash(bytes([BLAKE3_CODE, BLAKE3_LEN]) + digest)
 
 
 def hash_hex(data: bytes) -> str:
     """Return the hex string of the multihash of `data`."""
-    raise NotImplementedError
+    return hash_bytes(data).hex()
 
 
 def from_hex(hexstr: str) -> Hash:
     """Reconstruct a Hash from its hex string."""
-    raise NotImplementedError
+    return Hash(bytes.fromhex(hexstr))
 
 
 def is_valid_hash(h: bytes) -> bool:
     """True iff `h` is a well-formed 34-byte BLAKE3 multihash."""
-    raise NotImplementedError
+    return (
+        len(h) == HASH_SIZE
+        and h[0] == BLAKE3_CODE
+        and h[1] == BLAKE3_LEN
+    )
