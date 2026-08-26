@@ -1,0 +1,17 @@
+# Runtime store — never commit content-addressed blobs or the index DB
+data/objects/
+data/index.db
+data/index.db-wal
+data/index.db-shm
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Tooling
+.pytest_cache/
+.venv/
