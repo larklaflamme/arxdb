@@ -6,6 +6,11 @@ the public `verify_and_commit` pipeline (never bypassing it), is idempotent
 (re-running skips already-present edges), and prints a verification report
 showing expected κ vs actual κ per edge.
 
+Phase 5 wiring: after seeding, it builds the genesis roster binding "Skye" to
+the seed signer key and runs `verify_edge_attestation` on every committed edge
+— the plan's §9 acceptance test that the corpus edges resolve to a *named*
+agent rather than an anonymous 32-byte key.
+
 Usage:
     python scripts/seed_phaser.py [--root PATH]
 
@@ -22,6 +27,13 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from arxdb.attestation.attest import (
+    AnchorRecord,
+    anchor,
+    commit_roster,
+    verify_edge_attestation,
+)
+from arxdb.attestation.roster import Roster
 from arxdb.query.path import path_discovery
 from arxdb.query.reachability import reachable
 from arxdb.query.resolve import resolve_edge
@@ -35,6 +47,8 @@ from arxdb.verification.verifier import verify
 
 _KEYPAIR_FILE = "seed_keypair.bin"
 _KEYPAIR_SIZE = 64  # 32-byte private seed + 32-byte public key
+_ROSTER_FILE = "roster.bin"
+_ANCHOR_FILE = "anchor.bin"
 
 
 @dataclass(frozen=True)
@@ -50,11 +64,39 @@ class SeedRow:
 
 
 def _node_map() -> dict[str, Node]:
-    """Map corpus keys (N1..N8) to `Node` objects."""
+    """Map corpus keys (N1..N9) to `Node` objects."""
     return {
         n.key: Node(claim=n.claim, domain=n.domain, polarity=n.polarity)
         for n in CORPUS_NODES
     }
+
+
+def _build_edge(e, node_map: dict[str, Node], signer_pubkey: bytes) -> Edge | None:
+    """Build the `Edge` record for a corpus edge, or None if it would be rejected.
+
+    Shared by `seed()` and `verify_seed_attestation()` so the edge construction
+    (and therefore the content address) is identical in both paths.
+    """
+    premises = [node_map[k] for k in e.premise_keys]
+    conclusion = node_map[e.conclusion_key]
+
+    v = verify(premises, conclusion, e.rule, e.edge_type, e.proof_bytes)
+    if v.rejected:
+        return None
+
+    premise_hashes = [p.node_id() for p in premises]
+    conclusion_hash = conclusion.node_id()
+    proof_hash = hash_bytes(e.proof_bytes) if e.proof_bytes is not None else None
+    return Edge(
+        type=e.edge_type,
+        premises=tuple(premise_hashes),
+        conclusion=conclusion_hash,
+        rule=e.rule,
+        proof_hash=proof_hash,
+        verdict=v.verdict,
+        kappa=v.kappa,
+        signer_pubkey=signer_pubkey,
+    )
 
 
 def seed(storage: Storage, signer_pubkey: bytes) -> list[SeedRow]:
@@ -69,39 +111,22 @@ def seed(storage: Storage, signer_pubkey: bytes) -> list[SeedRow]:
     rows: list[SeedRow] = []
 
     for e in CORPUS_EDGES:
-        premises = [node_map[k] for k in e.premise_keys]
-        conclusion = node_map[e.conclusion_key]
-
-        # Pre-check: verify to learn verdict/κ, then build the edge record to
-        # compute its content address for the idempotency check.
-        v = verify(premises, conclusion, e.rule, e.edge_type, e.proof_bytes)
-        if v.rejected:
+        edge_record = _build_edge(e, node_map, signer_pubkey)
+        if edge_record is None:
             rows.append(
                 SeedRow(e.key, e.edge_type, e.rule, e.expected_kappa, None, "REJECTED")
             )
             continue
 
-        premise_hashes = [p.node_id() for p in premises]
-        conclusion_hash = conclusion.node_id()
-        proof_hash = hash_bytes(e.proof_bytes) if e.proof_bytes is not None else None
-        edge_record = Edge(
-            type=e.edge_type,
-            premises=tuple(premise_hashes),
-            conclusion=conclusion_hash,
-            rule=e.rule,
-            proof_hash=proof_hash,
-            verdict=v.verdict,
-            kappa=v.kappa,
-            signer_pubkey=signer_pubkey,
-        )
         edge_hash = edge_record.edge_hash()
-
         if resolve_edge(edge_hash, storage) is not None:
             rows.append(
-                SeedRow(e.key, e.edge_type, e.rule, e.expected_kappa, v.kappa, "SKIP")
+                SeedRow(e.key, e.edge_type, e.rule, e.expected_kappa, edge_record.kappa, "SKIP")
             )
             continue
 
+        premises = [node_map[k] for k in e.premise_keys]
+        conclusion = node_map[e.conclusion_key]
         cr = verify_and_commit(
             storage,
             signer_pubkey,
@@ -116,6 +141,27 @@ def seed(storage: Storage, signer_pubkey: bytes) -> list[SeedRow]:
         rows.append(SeedRow(e.key, e.edge_type, e.rule, e.expected_kappa, actual, status))
 
     return rows
+
+
+def verify_seed_attestation(
+    storage: Storage, roster: Roster, signer_pubkey: bytes
+) -> list[tuple[str, bool, str | None]]:
+    """Verify every corpus edge's attestation resolves to a named agent.
+
+    Returns (edge_key, ok, signer_agent_id) per edge. This is the Phase 5
+    acceptance test: provenance requires the signer_pubkey to resolve to
+    "Skye" via the roster, not remain an anonymous 32-byte blob.
+    """
+    node_map = _node_map()
+    results: list[tuple[str, bool, str | None]] = []
+    for e in CORPUS_EDGES:
+        edge_record = _build_edge(e, node_map, signer_pubkey)
+        if edge_record is None:
+            results.append((e.key, False, None))
+            continue
+        res = verify_edge_attestation(edge_record, storage, roster)
+        results.append((e.key, res.ok, res.signer_agent_id))
+    return results
 
 
 def _load_or_create_keypair(root: Path) -> tuple[bytes, bytes]:
@@ -177,6 +223,42 @@ def _print_exit_criteria(storage: Storage) -> None:
             )
 
 
+def _print_attestation(
+    storage: Storage, roster: Roster, signer_pubkey: bytes
+) -> None:
+    """Run the Phase 5 acceptance test and print the provenance result."""
+    results = verify_seed_attestation(storage, roster, signer_pubkey)
+    all_ok = all(ok for _, ok, _ in results)
+    print("\n--- Phase 5 acceptance: provenance (roster) ---")
+    print(f"roster_hash={roster.roster_hash().hex()[:16]}...")
+    for key, ok, agent in results:
+        print(f"  {key}: ok={ok} signer={agent}")
+    print(f"  => all corpus edges resolve to 'Skye': {all_ok}")
+
+
+def persist_anchor(storage: Storage, roster: Roster, root: Path) -> AnchorRecord:
+    """Build the anchor record and persist roster + anchor to disk.
+
+    Writes `<root>/roster.bin` (the roster's canonical CBOR) and
+    `<root>/anchor.bin` (the anchor record's canonical CBOR). The anchor's
+    `root_hash` covers the roster (genesis entry) plus all committed edges, so
+    the two files together are the complete external trust anchor.
+    """
+    rec = anchor(storage, roster)
+    (root / _ROSTER_FILE).write_bytes(roster.roster_bytes())
+    (root / _ANCHOR_FILE).write_bytes(rec.anchor_bytes())
+    return rec
+
+
+def _print_anchor(rec: AnchorRecord) -> None:
+    """Print the persisted anchor record summary."""
+    print("\n--- Phase 5 acceptance: anchor record ---")
+    print(f"root_hash={rec.root_hash.hex()[:16]}...")
+    print(f"entry_count={rec.entry_count}")
+    print(f"roster_hash={rec.roster_hash.hex()[:16]}...")
+    print(f"anchor_hash={rec.anchor_hash().hex()[:16]}...")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Seed the phaser-thread corpus.")
     parser.add_argument(
@@ -191,11 +273,16 @@ def main(argv: list[str] | None = None) -> int:
     root.mkdir(parents=True, exist_ok=True)
     priv, pub = _load_or_create_keypair(root)
     storage = Storage(root, priv, pub)
+    roster = Roster(entries={"Skye": pub})
 
     try:
+        commit_roster(storage, roster)
         rows = seed(storage, pub)
         _print_report(rows)
         _print_exit_criteria(storage)
+        _print_attestation(storage, roster, pub)
+        rec = persist_anchor(storage, roster, root)
+        _print_anchor(rec)
     finally:
         storage.close()
 

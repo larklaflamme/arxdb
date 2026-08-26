@@ -22,7 +22,7 @@ from arxdb.verification.schema import EdgeType, Kappa
 _SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
-from seed_phaser import _node_map, seed  # noqa: E402
+from seed_phaser import _node_map, persist_anchor, seed, verify_seed_attestation  # noqa: E402
 
 
 def _storage(tmp_root, keypair) -> Storage:
@@ -133,3 +133,63 @@ def test_query_b_names_the_wall(tmp_root, keypair):
         mentioned.add(me.conclusion)
         mentioned.update(me.blocking_nodes)
     assert n9 in mentioned
+
+
+# --- Phase 5 wiring: roster provenance --------------------------------------
+
+def test_seed_edges_resolve_to_skye(tmp_root, keypair):
+    """The plan's §9 acceptance test: corpus edges resolve to a named agent."""
+    from arxdb.attestation.roster import Roster
+
+    s = _storage(tmp_root, keypair)
+    _, pub = keypair
+    seed(s, pub)
+
+    roster = Roster(entries={"Skye": pub})
+    results = verify_seed_attestation(s, roster, pub)
+    assert len(results) == 9
+    assert all(ok for _, ok, _ in results)
+    assert all(agent == "Skye" for _, _, agent in results)
+
+
+def test_seed_edges_fail_with_empty_roster(tmp_root, keypair):
+    """Provenance fails when the roster does not bind the signer key."""
+    from arxdb.attestation.roster import Roster
+
+    s = _storage(tmp_root, keypair)
+    _, pub = keypair
+    seed(s, pub)
+
+    empty = Roster(entries={})
+    results = verify_seed_attestation(s, empty, pub)
+    assert all(not ok for _, ok, _ in results)
+    assert all(agent is None for _, _, agent in results)
+
+
+# --- Phase 5: anchor record (roster + anchor persisted) ---------------------
+
+def test_full_ceremony_persists_roster_and_anchor(tmp_root, keypair):
+    """commit_roster + seed + persist_anchor: the anchor covers everything."""
+    from arxdb.attestation.attest import anchor, commit_roster, verify_history
+    from arxdb.attestation.roster import Roster
+
+    s = _storage(tmp_root, keypair)
+    _, pub = keypair
+    roster = Roster(entries={"Skye": pub})
+
+    commit_roster(s, roster)
+    seed(s, pub)
+    rec = persist_anchor(s, roster, tmp_root)
+
+    # root_hash covers roster (entry 0) + 9 edges = 10 entries.
+    assert rec.entry_count == 10
+    assert rec.roster_hash == roster.roster_hash()
+    assert verify_history(s, rec.root_hash) is True
+
+    # Both files exist on disk and round-trip.
+    roster_path = tmp_root / "roster.bin"
+    anchor_path = tmp_root / "anchor.bin"
+    assert roster_path.exists()
+    assert anchor_path.exists()
+    assert roster_path.read_bytes() == roster.roster_bytes()
+    assert anchor_path.read_bytes() == rec.anchor_bytes()
