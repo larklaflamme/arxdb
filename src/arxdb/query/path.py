@@ -12,7 +12,7 @@ private storage attributes.
 Public API:
     MissingEdge      — conclusion, premises, blocking_nodes, rule
     PathResult       — target, reachable, depth, kappa, missing_edges
-    path_discovery(target, storage) -> PathResult
+    path_discovery(target, storage, min_kappa=K0) -> PathResult
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from arxdb.storage.hashing import Hash
 from arxdb.storage.storage import Storage
 
-from arxdb.verification.kappa import Kappa
+from arxdb.verification.kappa import Kappa, rank
 
 from .reachability import _derivation_edges, _fixpoint
 
@@ -52,8 +52,10 @@ class PathResult:
     """The outcome of a path-discovery query.
 
     When `reachable` is True, `depth` and `kappa` describe the best derivation
-    and `missing_edges` is empty. When False, `depth`/`kappa` are None and
-    `missing_edges` names the goal-specific frontier.
+    and `missing_edges` is empty. When False, `missing_edges` names the
+    goal-specific frontier; `depth`/`kappa` carry the *actual* best derivation
+    whenever one exists below the threshold (mirroring `ReachabilityResult`),
+    and are None only when the target is genuinely unestablished.
     """
 
     target: Hash
@@ -63,21 +65,37 @@ class PathResult:
     missing_edges: tuple[MissingEdge, ...]
 
 
-def path_discovery(target: Hash, storage: Storage) -> PathResult:
+def path_discovery(
+    target: Hash,
+    storage: Storage,
+    min_kappa: Kappa = Kappa.K0,
+) -> PathResult:
     """Report the minimum proof-tree depth to `target`, or the missing frontier.
 
-    Forward reachability first (to know what is already established); if the
-    target is established, return the depth and κ. Otherwise traverse backward
-    from the target along candidate derivation edges, collecting the
-    unestablished premises in its dependency cone as the goal-specific missing
-    frontier.
+    Forward reachability first (to know what is already established at
+    κ ≥ `min_kappa`); if the target is established at that strength, return
+    the depth and κ. Otherwise traverse backward from the target along
+    candidate derivation edges, collecting the premises that are *not*
+    established at κ ≥ `min_kappa` in its dependency cone as the goal-specific
+    missing frontier.
+
+    `min_kappa` is the threshold that turns "established but too weak" into
+    "unreachable": a target derived only at κ0 is reported `reachable=False`
+    when `min_kappa=K1`, and the frontier names what would strengthen it.
     """
     derivation_edges = _derivation_edges(storage, None)
     kappa, depth, _ = _fixpoint(derivation_edges, ())
-    established = set(kappa)
+
+    # "Good enough" = established at κ ≥ min_kappa.
+    established = {n for n, k in kappa.items() if rank(k) >= rank(min_kappa)}
 
     if target in established:
         return PathResult(target, True, depth[target], kappa[target], ())
+
+    # The target is either unestablished, or established below the threshold.
+    # Carry the actual derivation (if any) for honest reporting.
+    actual_kappa = kappa.get(target)
+    actual_depth = depth.get(target)
 
     edge_map = {h: e for h, e in derivation_edges}
     missing: list[MissingEdge] = []
@@ -110,4 +128,4 @@ def path_discovery(target: Hash, storage: Storage) -> PathResult:
                 for p in blocking:
                     stack.append(p)
 
-    return PathResult(target, False, None, None, tuple(missing))
+    return PathResult(target, False, actual_depth, actual_kappa, tuple(missing))
