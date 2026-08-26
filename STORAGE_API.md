@@ -1,4 +1,4 @@
-# ArxDB — Storage API (v0.3)
+# ArxDB — Storage API (v0.4)
 
 The boundary between the verification layer (Python, permanent) and the storage
 layer (Python prototype → Go). This interface is the contract that makes the
@@ -11,6 +11,14 @@ swap a drop-in replacement, not a rewrite.
 > `LogEntry` gained `payload`; `AppendLog.append` takes the raw entry bytes and
 > signs internally; `MerkleInclusionProof` uses `leaf_hash`/`index`/`path`; the
 > `hashing`/`serialization`/`keys`/`merkle` module-level APIs are now documented.
+
+> **v0.4 changelog** (Phase 6 — Go storage engine + gRPC process boundary): the
+> storage layer is now implemented in Go (Pebble) and exposed over gRPC. The
+> Python `Storage` interface is unchanged; a new `GrpcStorage` client
+> (`grpc_client.py`) presents the same interface over a UNIX socket, and
+> `factory.py` selects between the in-process SQLite backend and the Go daemon.
+> The contract is now language-agnostic: `go/proto/arxdb.proto` is the single
+> source of truth for the process boundary (see §4).
 
 ## Design principle
 
@@ -190,6 +198,57 @@ def verify_inclusion(proof: MerkleInclusionProof, root: Hash) -> bool: ...
 
 ---
 
+---
+
+## 4. gRPC service (the process boundary)
+
+The Go engine is exposed as a gRPC `StorageService` (defined in
+`go/proto/arxdb.proto`). The Python verification layer talks to it through
+`GrpcStorage` (`grpc_client.py`), which presents the *same* interface as the
+in-process `Storage` — the verification and query layers are untouched.
+
+**The daemon** (`go/cmd/arxdbd`) owns the storage engine and the signing
+keypair. It listens on a UNIX socket (default `/tmp/arxdb.sock`) and serves
+the `StorageService`. Clients do not pass keys or roots per-call.
+
+**The RPC surface** (coarse-grained, one operation per RPC):
+
+| RPC | Python method | Notes |
+|-----|---------------|-------|
+| `PutObject` / `GetObject` / `HasObject` | `objects.put*` / `get*` / `has*` | `repeated` fields carry batches |
+| `RegisterNode` / `RegisterEdge` | `graph.register_node` / `register_edge` | standalone (own committed batch) |
+| `GetConnectivity` | `graph.get_connectivity` | returns `(premises, conclusion, found)` |
+| `IncomingEdges` / `OutgoingEdges` | `graph.incoming_edges` / `outgoing_edges` | |
+| `AllNodes` / `AllEdges` | `graph.all_nodes` / `all_edges` | structural enumeration |
+| `Append` / `GetEntry` | `log.append` / `log.get` | |
+| `RootHash` / `InclusionProof` / `Len` | `log.root_hash` / `get_inclusion_proof` / `len(log)` | |
+| `CommitEdge` | `commit_edge_tx` | **the atomic one** — must not split across RPCs |
+
+**Why `CommitEdge` is one RPC, not three.** `commit_edge_tx` is atomic across
+graph + log (one Pebble indexed batch). Three separate RPCs (`put`, `register`,
+`append`) would break that atomicity — a crash between RPC 2 and 3 leaves a
+half-committed edge. So the Go server exposes `CommitEdge` as a single atomic
+operation, mirroring the Python `BEGIN IMMEDIATE … COMMIT`.
+
+**Type mapping.** `Hash` (34-byte BLAKE3 multihash) ↔ `bytes`; `LogEntry` ↔ the
+`LogEntry` message (seq, timestamp_ns, signer_pubkey, entry_hash, prev_log_hash,
+signature, payload); `MerkleInclusionProof` ↔ `leaf_hash`/`index`/`path`.
+`proof` is `optional bytes` so `None` (absent) is distinct from empty bytes.
+
+**`verify_entry` is local.** It is a pure function of the entry's fields, so
+`GrpcAppendLog.verify_entry` computes it client-side (no RPC round-trip).
+
+**Factory** (`factory.py`):
+
+```python
+create_storage(root, priv, pub, backend="sqlite")   # in-process (Phase 1)
+create_storage(root, priv, pub, backend="grpc", socket_path="/tmp/arxdb.sock")
+```
+
+For `backend="grpc"`, `root`/`priv`/`pub` are ignored (the daemon owns them).
+
+---
+
 ## The unified Storage interface
 
 ```python
@@ -264,16 +323,26 @@ Avoids JSON float/whitespace ambiguity.
 
 ---
 
-## Go & IPC migration readiness (Phase 6)
+## Go engine (Phase 6) — implemented
 
-The dataclasses above map 1:1 to protobuf messages (`bytes` for hashes and
-signatures, `repeated` for batches and premises), so the Go engine can be
-exposed over gRPC without changing the contract.
+The Go storage engine (`go/pkg/storage`) is implemented on Pebble (ADR-009) and
+exposed over gRPC (§4). The three sub-interfaces map 1:1:
 
-Concurrency invariants for the Go implementation:
-- **ObjectStore** — concurrent lock-free reads, deduplicated append.
-- **GraphIndex** — read-shared / write-exclusive, or MVCC.
-- **AppendLog** — serialized atomic appends with synchronized Merkle recalculation.
+- **ObjectStore** — content-addressed sharded filesystem, byte-identical layout
+  to the Python reference (`objects/xx/<full-hex>`), atomic temp-file + rename.
+- **GraphIndex** — Pebble-backed adjacency with single-byte key prefixes
+  (`n`/`e`/`p`/`c`/`o`), giving prefix-iteration for incoming/outgoing/all.
+- **AppendLog** — signed append-only log + Merkle tree, byte-identical signature
+  message to Python.
+
+**Atomicity** is real: graph + log share one Pebble DB and commit in a single
+`NewIndexedBatch()` (the cross-process analogue of `BEGIN IMMEDIATE … COMMIT`).
+The ObjectStore write stays outside the batch (idempotent, orphaned blob is
+harmless), exactly as Phase 1 did.
+
+**Cryptographic parity** is enforced by `test_go_parity.py` against a frozen
+test-vector corpus (`tests/parity_vectors.json`): canonical CBOR, BLAKE3
+multihash, Ed25519, and Merkle roots are byte-identical across Python and Go.
 
 ---
 

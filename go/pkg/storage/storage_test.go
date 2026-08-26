@@ -185,3 +185,44 @@ func TestCommitEdgeTxAtomicity(t *testing.T) {
 		t.Fatalf("log length changed by uncommitted batch: %d", n)
 	}
 }
+
+func TestLogGetDecodeRoundTrip(t *testing.T) {
+	// The gRPC GetEntry path decodes entries from Pebble via decodeEntry.
+	// This test exercises that path directly (the in-memory entry returned by
+	// CommitEdgeTx does not go through decodeEntry, so a decode bug would
+	// otherwise be invisible to the storage tests).
+	priv, pub := testKeypair(t)
+	s, err := Open(t.TempDir(), priv, pub)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer s.Close()
+
+	payload := []byte("decode me")
+	conclusion := hashing.HashBytes(payload)
+	_, entry, err := s.CommitEdgeTx(nil, conclusion, payload, nil)
+	if err != nil {
+		t.Fatalf("CommitEdgeTx: %v", err)
+	}
+
+	got, err := s.Log().Get(0)
+	if err != nil {
+		t.Fatalf("Get(0): %v", err)
+	}
+	if got == nil {
+		t.Fatalf("Get(0) returned nil")
+	}
+	if got.Seq != entry.Seq || got.TimestampNs != entry.TimestampNs {
+		t.Fatalf("decoded seq/ts mismatch: got (%d,%d) want (%d,%d)",
+			got.Seq, got.TimestampNs, entry.Seq, entry.TimestampNs)
+	}
+	if got.EntryHash != entry.EntryHash || got.PrevLogHash != entry.PrevLogHash {
+		t.Fatalf("decoded hash mismatch")
+	}
+	if string(got.Payload) != string(payload) {
+		t.Fatalf("decoded payload mismatch: %q", got.Payload)
+	}
+	if !s.Log().VerifyEntry(got) {
+		t.Fatalf("decoded entry does not verify")
+	}
+}

@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/cockroachdb/pebble"
@@ -88,13 +89,13 @@ func decodeEntry(data []byte) (*LogEntry, error) {
 	if len(arr) != 7 {
 		return nil, fmt.Errorf("log entry: expected 7 fields, got %d", len(arr))
 	}
-	seq, ok := arr[0].(int64)
-	if !ok {
-		return nil, fmt.Errorf("log entry: field 0 not int64")
+	seq, err := toInt64(arr[0])
+	if err != nil {
+		return nil, fmt.Errorf("log entry: field 0: %w", err)
 	}
-	ts, ok := arr[1].(int64)
-	if !ok {
-		return nil, fmt.Errorf("log entry: field 1 not int64")
+	ts, err := toInt64(arr[1])
+	if err != nil {
+		return nil, fmt.Errorf("log entry: field 1: %w", err)
 	}
 	pub, ok := arr[2].([]byte)
 	if !ok {
@@ -120,6 +121,23 @@ func decodeEntry(data []byte) (*LogEntry, error) {
 		Seq: seq, TimestampNs: ts, SignerPubkey: pub,
 		EntryHash: eh, PrevLogHash: ph, Signature: sig, Payload: payload,
 	}, nil
+}
+
+// toInt64 converts a decoded CBOR integer to int64. The fxamacker/cbor
+// library decodes positive CBOR integers into uint64 when the target is
+// interface{}, so both int64 and uint64 must be accepted.
+func toInt64(v any) (int64, error) {
+	switch x := v.(type) {
+	case int64:
+		return x, nil
+	case uint64:
+		if x > math.MaxInt64 {
+			return 0, fmt.Errorf("integer overflow: %d", x)
+		}
+		return int64(x), nil
+	default:
+		return 0, fmt.Errorf("not an integer: %T", v)
+	}
 }
 
 // toHash converts a decoded CBOR byte string to a hashing.Hash.

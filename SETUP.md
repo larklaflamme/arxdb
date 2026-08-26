@@ -148,16 +148,27 @@ The single source of truth is `go/proto/arxdb.proto`. Generate both languages
 from it:
 
 ```bash
-# Go (from the go/ directory)
+# Go (from the go/ directory; output lands in go/proto/arxdbpb/)
 protoc -I proto \
   --go_out=. --go_opt=module=github.com/larklaflamme/arxdb/go \
   --go-grpc_out=. --go-grpc_opt=module=github.com/larklaflamme/arxdb/go \
   proto/arxdb.proto
 
-# Python
+# Python (output lands in src/arxdb/storage/grpc_gen/)
 python -m grpc_tools.protoc -I go/proto \
-  --python_out=src/arxdb --grpc_python_out=src/arxdb \
+  --python_out=src/arxdb/storage/grpc_gen \
+  --grpc_python_out=src/arxdb/storage/grpc_gen \
   go/proto/arxdb.proto
+```
+
+**Post-processing (required for the Python package to import).** The generated
+`arxdb_pb2_grpc.py` uses an absolute `import arxdb_pb2`, which breaks when the
+files live in a subpackage. Fix it to a relative import and add an `__init__.py`:
+
+```bash
+sed -i 's/^import arxdb_pb2 as arxdb__pb2/from . import arxdb_pb2 as arxdb__pb2/' \
+  src/arxdb/storage/grpc_gen/arxdb_pb2_grpc.py
+touch src/arxdb/storage/grpc_gen/__init__.py
 ```
 
 > **Known minor discrepancy:** the standalone `protoc` is **36.0**, but

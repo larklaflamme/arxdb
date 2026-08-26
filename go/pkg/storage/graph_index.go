@@ -213,3 +213,64 @@ func prefixUpperBound(prefix []byte) []byte {
 	}
 	return nil // prefix is all 0xff; no upper bound
 }
+
+// AllNodes returns every registered node hash, in Pebble iteration order
+// (sorted by the 'n'-prefixed key, i.e. by node hash). Structural enumeration
+// only — no semantic traversal.
+func (g *GraphIndex) AllNodes() ([]hashing.Hash, error) {
+	prefix := []byte{'n'}
+	iter, err := g.db.NewIter(&pebble.IterOptions{LowerBound: prefix, UpperBound: prefixUpperBound(prefix)})
+	if err != nil {
+		return nil, err
+	}
+	defer iter.Close()
+	var out []hashing.Hash
+	for iter.First(); iter.Valid(); iter.Next() {
+		key := iter.Key()
+		var node hashing.Hash
+		copy(node[:], key[1:])
+		out = append(out, node)
+	}
+	return out, iter.Error()
+}
+
+// AllEdges returns every indexed edge hash, in Pebble iteration order (sorted
+// by the 'e'-prefixed key, i.e. by edge hash). Structural enumeration only.
+func (g *GraphIndex) AllEdges() ([]hashing.Hash, error) {
+	prefix := []byte{'e'}
+	iter, err := g.db.NewIter(&pebble.IterOptions{LowerBound: prefix, UpperBound: prefixUpperBound(prefix)})
+	if err != nil {
+		return nil, err
+	}
+	defer iter.Close()
+	var out []hashing.Hash
+	for iter.First(); iter.Valid(); iter.Next() {
+		key := iter.Key()
+		var edge hashing.Hash
+		copy(edge[:], key[1:])
+		out = append(out, edge)
+	}
+	return out, iter.Error()
+}
+
+// RegisterNodeTx registers a node in its own committed batch (standalone form
+// for the gRPC service, where there is no surrounding transaction).
+func (g *GraphIndex) RegisterNodeTx(node hashing.Hash) error {
+	b := g.db.NewIndexedBatch()
+	defer b.Close()
+	if err := g.RegisterNode(b, node); err != nil {
+		return err
+	}
+	return b.Commit(nil)
+}
+
+// RegisterEdgeTx registers an edge in its own committed batch (standalone form
+// for the gRPC service).
+func (g *GraphIndex) RegisterEdgeTx(edge hashing.Hash, premises []hashing.Hash, conclusion hashing.Hash) error {
+	b := g.db.NewIndexedBatch()
+	defer b.Close()
+	if err := g.RegisterEdge(b, edge, premises, conclusion); err != nil {
+		return err
+	}
+	return b.Commit(nil)
+}

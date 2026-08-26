@@ -1,0 +1,205 @@
+// ArxDB StorageService — the language-agnostic storage contract.
+//
+// This is the process-boundary form of STORAGE_API.md. The Go daemon
+// (cmd/arxdbd) implements this service over gRPC; the Python verification
+// layer talks to it through src/arxdb/storage/grpc_client.py, which presents
+// the *same* Storage interface as the in-process SQLite backend.
+//
+// All hashes are 34-byte BLAKE3 multihashes (0x1e || 0x20 || 32-byte digest),
+// carried as `bytes`. The daemon owns the storage engine and the signing
+// keypair; clients do not pass keys or roots per-call.
+//
+// Scope (Phase 6, Scope A): storage-only. The two semantic queries
+// (reachable / path_discovery) deliberately live in the Python query layer,
+// not here — see STORAGE_API.md "Deliberately absent".
+
+syntax = "proto3";
+
+package arxdb;
+
+option go_package = "github.com/larklaflamme/arxdb/go/proto/arxdbpb";
+
+// ---------------------------------------------------------------------------
+// Object store (content-addressed, idempotent)
+// ---------------------------------------------------------------------------
+
+message PutObjectRequest {
+  repeated bytes data = 1;  // blobs to store
+}
+
+message PutObjectResponse {
+  repeated bytes hashes = 1;  // content hashes, parallel to data
+}
+
+message GetObjectRequest {
+  repeated bytes hashes = 1;
+}
+
+message GetObjectResponse {
+  repeated bytes data = 1;    // blob bytes; empty where found == false
+  repeated bool found = 2;    // parallel to hashes
+}
+
+message HasObjectRequest {
+  repeated bytes hashes = 1;
+}
+
+message HasObjectResponse {
+  repeated bool found = 1;    // parallel to hashes
+}
+
+// ---------------------------------------------------------------------------
+// Graph index (structural adjacency only)
+// ---------------------------------------------------------------------------
+
+message RegisterNodeRequest {
+  bytes node_hash = 1;
+}
+
+message RegisterNodeResponse {}
+
+message RegisterEdgeRequest {
+  bytes edge_hash = 1;
+  repeated bytes premises = 2;
+  bytes conclusion = 3;
+}
+
+message RegisterEdgeResponse {}
+
+message GetConnectivityRequest {
+  bytes edge_hash = 1;
+}
+
+message GetConnectivityResponse {
+  repeated bytes premises = 1;
+  bytes conclusion = 2;
+  bool found = 3;
+}
+
+message IncomingEdgesRequest {
+  bytes node_hash = 1;
+}
+
+message IncomingEdgesResponse {
+  repeated bytes edge_hashes = 1;
+}
+
+message OutgoingEdgesRequest {
+  bytes node_hash = 1;
+}
+
+message OutgoingEdgesResponse {
+  repeated bytes edge_hashes = 1;
+}
+
+// ---------------------------------------------------------------------------
+
+message AllNodesRequest {}
+
+message AllNodesResponse {
+  repeated bytes node_hashes = 1;
+}
+
+message AllEdgesRequest {}
+
+message AllEdgesResponse {
+  repeated bytes edge_hashes = 1;
+}
+// Append log (signed, append-only, Merkle)
+// ---------------------------------------------------------------------------
+
+message LogEntry {
+  int64 seq = 1;
+  int64 timestamp_ns = 2;
+  bytes signer_pubkey = 3;
+  bytes entry_hash = 4;     // content hash of payload
+  bytes prev_log_hash = 5;
+  bytes signature = 6;      // over canonical_encode([seq, ts, pubkey, entry_hash, prev_log_hash])
+  bytes payload = 7;
+}
+
+message AppendRequest {
+  bytes entry = 1;  // raw entry bytes; the daemon signs internally
+}
+
+message AppendResponse {
+  LogEntry entry = 1;
+}
+
+message GetEntryRequest {
+  int64 seq = 1;
+}
+
+message GetEntryResponse {
+  LogEntry entry = 1;
+  bool found = 2;
+}
+
+message RootHashRequest {}
+
+message RootHashResponse {
+  bytes root_hash = 1;
+}
+
+message InclusionProofRequest {
+  int64 seq = 1;
+}
+
+message InclusionProofResponse {
+  bytes leaf_hash = 1;
+  int64 index = 2;
+  repeated bytes path = 3;  // sibling hashes, bottom-up
+  bool found = 4;
+}
+
+// ---------------------------------------------------------------------------
+
+message LenRequest {}
+
+message LenResponse {
+  int64 count = 1;
+}
+// Atomic commit (the one operation that must not split across RPCs)
+// ---------------------------------------------------------------------------
+
+message CommitEdgeRequest {
+  repeated bytes premises = 1;
+  bytes conclusion = 2;
+  bytes edge_data = 3;
+  optional bytes proof = 4;  // absent == None (distinct from empty bytes)
+}
+
+message CommitEdgeResponse {
+  bytes edge_hash = 1;
+  LogEntry entry = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Service
+// ---------------------------------------------------------------------------
+
+service StorageService {
+  // Object store
+  rpc PutObject(PutObjectRequest) returns (PutObjectResponse);
+  rpc GetObject(GetObjectRequest) returns (GetObjectResponse);
+  rpc HasObject(HasObjectRequest) returns (HasObjectResponse);
+
+  // Graph index
+  rpc RegisterNode(RegisterNodeRequest) returns (RegisterNodeResponse);
+  rpc RegisterEdge(RegisterEdgeRequest) returns (RegisterEdgeResponse);
+  rpc GetConnectivity(GetConnectivityRequest) returns (GetConnectivityResponse);
+  rpc IncomingEdges(IncomingEdgesRequest) returns (IncomingEdgesResponse);
+  rpc OutgoingEdges(OutgoingEdgesRequest) returns (OutgoingEdgesResponse);
+  rpc AllNodes(AllNodesRequest) returns (AllNodesResponse);
+  rpc AllEdges(AllEdgesRequest) returns (AllEdgesResponse);
+
+  // Append log
+  rpc Append(AppendRequest) returns (AppendResponse);
+  rpc GetEntry(GetEntryRequest) returns (GetEntryResponse);
+  rpc RootHash(RootHashRequest) returns (RootHashResponse);
+  rpc InclusionProof(InclusionProofRequest) returns (InclusionProofResponse);
+  rpc Len(LenRequest) returns (LenResponse);
+
+  // Atomic commit
+  rpc CommitEdge(CommitEdgeRequest) returns (CommitEdgeResponse);
+}
