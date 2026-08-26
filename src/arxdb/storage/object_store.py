@@ -17,9 +17,11 @@ Public API (Phase 1):
 
 from __future__ import annotations
 
+import os
+import uuid
 from pathlib import Path
 
-from .hashing import Hash
+from .hashing import Hash, hash_bytes
 
 
 class ObjectStore:
@@ -29,20 +31,43 @@ class ObjectStore:
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
 
+    def _path(self, h: Hash) -> Path:
+        """Filesystem path for a hash: `objects/{hex[:2]}/{hex[2:]}`."""
+        hexstr = h.hex()
+        return self.root / hexstr[:2] / hexstr[2:]
+
     def put(self, data: bytes) -> Hash:
-        raise NotImplementedError
+        h = hash_bytes(data)
+        dest = self._path(h)
+        if dest.exists():
+            return h
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.root / f".tmp_{uuid.uuid4().hex}"
+        try:
+            with open(tmp, "wb") as f:
+                f.write(data)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, dest)
+        finally:
+            if tmp.exists():
+                tmp.unlink()
+        return h
 
     def put_batch(self, items: list[bytes]) -> list[Hash]:
-        raise NotImplementedError
+        return [self.put(item) for item in items]
 
     def get(self, h: Hash) -> bytes | None:
-        raise NotImplementedError
+        dest = self._path(h)
+        if not dest.exists():
+            return None
+        return dest.read_bytes()
 
     def get_batch(self, hashes: list[Hash]) -> list[bytes | None]:
-        raise NotImplementedError
+        return [self.get(h) for h in hashes]
 
     def has(self, h: Hash) -> bool:
-        raise NotImplementedError
+        return self._path(h).exists()
 
     def has_batch(self, hashes: list[Hash]) -> list[bool]:
-        raise NotImplementedError
+        return [self.has(h) for h in hashes]

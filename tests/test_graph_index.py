@@ -53,3 +53,18 @@ def test_unregistered_node_empty(tmp_root):
     g = GraphIndex(tmp_root / "index.db")
     assert g.incoming_edges(_h(b"ghost")) == []
     assert g.outgoing_edges(_h(b"ghost")) == []
+
+
+def test_missing_edge(tmp_root):
+    g = GraphIndex(tmp_root / "index.db")
+    assert g.get_connectivity(_h(b"unknown")) is None
+
+
+def test_duplicate_node_no_error(tmp_root):
+    """Registering an already-registered node is an idempotent no-op."""
+    g = GraphIndex(tmp_root / "index.db")
+    a = _h(b"a")
+    g.register_node(a)
+    g.register_node(a)  # must not raise
+    assert g.incoming_edges(a) == []
+    assert g.outgoing_edges(a) == []

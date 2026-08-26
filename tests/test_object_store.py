@@ -42,3 +42,28 @@ def test_empty_batch(tmp_root):
     store = ObjectStore(tmp_root / "objects")
     assert store.put_batch([]) == []
     assert store.get_batch([]) == []
+
+
+def test_persistence(tmp_root):
+    store = ObjectStore(tmp_root / "objects")
+    h = store.put(b"persistent")
+    # reopen a fresh store over the same root
+    store2 = ObjectStore(tmp_root / "objects")
+    assert store2.get(h) == b"persistent"
+
+
+def test_immutable(tmp_root):
+    store = ObjectStore(tmp_root / "objects")
+    h1 = store.put(b"original")
+    h2 = store.put(b"different")
+    assert h1 != h2
+    assert store.get(h1) == b"original"
+    assert store.get(h2) == b"different"
+
+
+def test_sharding(tmp_root):
+    store = ObjectStore(tmp_root / "objects")
+    h = store.put(b"hello")
+    hexstr = h.hex()
+    expected = tmp_root / "objects" / hexstr[:2] / hexstr[2:]
+    assert expected.exists()

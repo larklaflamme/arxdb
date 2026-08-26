@@ -18,8 +18,10 @@ substrate in Python, behind the exact interface in `STORAGE_API.md`.
 ## Implementation order (each step is independently testable)
 
 1. **`hashing.py`** — `Hash` type and BLAKE3 multihash.
-   - `Hash = NewType("Hash", bytes)` — a **34-byte multihash**: `0x1e` (BLAKE3
-     code) ‖ `0x20` (32-byte length) ‖ 32-byte digest.
+   - `class Hash(bytes)` — a **34-byte multihash**: `0x1e` (BLAKE3
+     code) ‖ `0x20` (32-byte length) ‖ 32-byte digest. A `bytes` subclass
+     (not a `NewType`) because runtime length validation in `__new__` beats a
+     type-only alias for a value that must be exactly 34 bytes.
    - `hash_bytes(data: bytes) -> Hash`, `from_hex(str) -> Hash`,
      `to_hex(Hash) -> str`.
    - *No dependencies.*
@@ -62,7 +64,7 @@ substrate in Python, behind the exact interface in `STORAGE_API.md`.
      sibling hashes.
    - *Depends on hashing.*
 
-6. **`graph_index.py`** — `GraphIndex` with `add_node`, `add_edge`,
+6. **`graph_index.py`** — `GraphIndex` with `register_node`, `register_edge`,
    `incoming_edges`, `outgoing_edges`, `get_connectivity`. Backed by **SQLite
    (WAL mode)**.
    - Schema:
@@ -71,18 +73,26 @@ substrate in Python, behind the exact interface in `STORAGE_API.md`.
      - `premises(edge_hash BLOB, premise_hash BLOB, position INT)`
    - Indices on `edges(conclusion)` and `premises(premise_hash)` for O(1)
      adjacency lookups.
-   - `EdgeConnectivity` frozen dataclass: `(edge_hash, premises, conclusion)`.
+   - `get_connectivity` returns a plain `(premises, conclusion)` tuple (not a
+     dataclass) so callers can tuple-unpack it directly; `register_*` naming
+     signals idempotency (re-registering is a no-op).
    - *No dependencies (uses stdlib `sqlite3`).*
 
 7. **`append_log.py`** — `AppendLog` with `append`, `get`, `len`, `root_hash`,
-   `get_inclusion_proof`, `verify_inclusion`. Backed by **SQLite (WAL mode)**,
+   `get_inclusion_proof`, `verify_entry`. Backed by **SQLite (WAL mode)**,
    sharing the same database file as `graph_index.py`.
    - Table: `log(seq INTEGER PRIMARY KEY, timestamp_ns INT, signer_pubkey BLOB,
-     entry_hash BLOB, prev_log_hash BLOB, signature BLOB)`.
+     entry_hash BLOB, prev_log_hash BLOB, signature BLOB, payload BLOB)`.
+     (`payload` is stored in the log table so `get(seq)` can reconstruct the
+     full `LogEntry` without an external object store.)
+   - `LogEntry` carries `seq, timestamp_ns, signer_pubkey, entry_hash,
+     prev_log_hash, signature, payload` — everything needed to verify it.
    - **Genesis:** entry 0 has `prev_log_hash = b"\x00" * 34`.
    - Signature is over `canonical_encode(seq, timestamp_ns, signer_pubkey,
-     entry_hash, prev_log_hash)`.
-   - *Depends on merkle, keys.*
+     entry_hash, prev_log_hash)`; `entry_hash = hash_bytes(payload)`.
+   - `verify_entry(entry)` checks both the signature and that
+     `entry_hash == hash_bytes(payload)` (payload integrity).
+   - *Depends on merkle, keys, serialization.*
 
 8. **`storage.py`** — `Storage` composing the three sub-interfaces, plus
    `commit_edge_tx` (atomic across all three).
@@ -93,9 +103,14 @@ substrate in Python, behind the exact interface in `STORAGE_API.md`.
 ## `commit_edge_tx` — the atomicity contract
 
 ```
-commit_edge_tx(edge_bytes, premises, conclusion, signer_pubkey, signature,
-               proof_bytes=None) -> (edge_hash, log_entry)
+commit_edge_tx(premises, conclusion, edge_data, proof=None)
+    -> (edge_hash, log_entry)
 ```
+
+`Storage` holds the agent's keypair (passed to `__init__`) and signs the log
+entry internally, so `signer_pubkey`/`signature` are not caller-supplied args.
+`edge_hash = hash_bytes(edge_data)` — the edge is content-addressed by its
+payload; premises/conclusion live in the graph index keyed by that hash.
 
 The atomicity is achieved by **splitting the two failure domains**:
 
@@ -107,6 +122,14 @@ The atomicity is achieved by **splitting the two failure domains**:
    register nodes + edge connectivity, append the signed log entry, `COMMIT`.
    If signing or appending fails, the transaction rolls back *all* graph
    adjacency updates automatically, leaving the database perfectly consistent.
+
+   To make this possible, `GraphIndex` and `AppendLog` each accept an optional
+   `conn` argument: when provided, they share that connection and do **not**
+   commit (the owner controls the transaction); when `None`, they open their
+   own connection and commit after each write (standalone use). `Storage` owns
+   one connection (autocommit mode, `isolation_level=None`) and passes it to
+   both, so `commit_edge_tx` can wrap graph + log in a single explicit
+   `BEGIN IMMEDIATE … COMMIT`.
 
 This is stronger than rollback-on-exception: it gives **process-crash
 durability** for the mutable state, because SQLite WAL guarantees the
