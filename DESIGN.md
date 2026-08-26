@@ -212,7 +212,7 @@ in the Query/Verification layer above the boundary.
 | Concern | Technology | Rationale |
 |---------|-----------|-----------|
 | Prototype storage | Python (SQLite WAL) | single-file persistence, concurrency safety |
-| Production storage | Go (BadgerDB/Pebble) | I/O + concurrency-bound; IPFS ecosystem; stdlib ed25519 |
+| Production storage | Go (Pebble) | I/O + concurrency-bound; active development; stdlib ed25519 |
 | Verification | Python (sympy, mpmath, z3, Lean) | the tools already live here |
 | Content addressing | BLAKE3 (multihash-prefixed) | fast, tree-hashing, incremental verify |
 | Serialization | Canonical CBOR (RFC 8949) | deterministic, binary, native in Python + Go |
@@ -247,7 +247,7 @@ Not "when it feels slow" — a concrete, measurable trigger.
 |----------|----------|
 | Serialization format | Canonical CBOR (RFC 8949) |
 | Hash function | BLAKE3 (multihash-prefixed for agility) |
-| Graph index backend | SQLite WAL (proto) → BadgerDB/Pebble (Go) |
+| Graph index backend | SQLite WAL (proto) → Pebble (Go) |
 | Key management | Per-agent Ed25519 keys + genesis roster |
 
 Remaining open (deferred, not blocking Phase 1):

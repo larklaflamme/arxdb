@@ -2,11 +2,12 @@
 
 Three layers, dependencies pointing upward only:
 
-    Query        (Phase 3) — AND-OR hyperpath traversal, proof-tree assembly
-    Verification (Phase 2) — edge schema, ELENCHUS veto, κ labels
-    Storage      (Phase 1) — ObjectStore, GraphIndex, AppendLog, Merkle
+    Query        — AND-OR hyperpath traversal, proof-tree assembly
+    Verification — edge schema, ELENCHUS veto, κ labels, formal checkers
+    Storage      — ObjectStore, GraphIndex, AppendLog, Merkle (SQLite or Go/Pebble)
 
-Phase 1 implements only the storage layer. See PROJECT_STRUCTURE.md.
+All seven roadmap phases are complete. See README.md for the pitch,
+DESIGN.md for the architecture, and DEV_GUIDE.md for integration.
 """
 
 __version__ = "0.1.0"

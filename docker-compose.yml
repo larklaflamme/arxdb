@@ -1,0 +1,20 @@
+# Local development / quick start.
+#
+#   docker compose up -d
+#   curl http://localhost:8080/health
+#
+# The Go/Pebble storage engine and the API's keypair/roster persist in the
+# named volume `arxdb-data` (mounted at /data).
+services:
+  arxdb:
+    image: ghcr.io/larklaflamme/arxdb:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - arxdb-data:/data
+    environment:
+      ARXDB_BACKEND: grpc
+    restart: unless-stopped
+
+volumes:
+  arxdb-data:

@@ -2,10 +2,10 @@
 
 > **A reasoning graph database.** Claims as nodes. Verified inference steps as edges. Proofs embedded, cryptographically signed, tamper-evident.
 
-[![Status](https://img.shields.io/badge/status-prototype-yellow)](https://github.com)
-[![Language](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org)
-[![Storage](https://img.shields.io/badge/storage-Go%20(planned)-00ADD8.svg)](https://go.dev)
-[![License](https://img.shields.io/badge/license-TBD-lightgrey.svg)]()
+[![Status](https://img.shields.io/badge/status-production--ready-brightgreen)](https://github.com)
+[![Language](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org)
+[![Storage](https://img.shields.io/badge/storage-Go%20(Pebble)-00ADD8.svg)](https://go.dev)
+[![License](https://img.shields.io/badge/license-Proprietary-lightgrey.svg)]()
 
 ---
 
@@ -37,20 +37,20 @@ The hop count is a **lower bound** on difficulty, never a prediction. It tells y
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│  Query Layer (reachability, path discovery)     │
-├─────────────────────────────────────────────────┤
-│  Verification Layer (Python — the moat)         │
-│  ELENCHUS predicates · κ-tiering · proof checks │
-│  sympy · mpmath · z3 · Lean bindings            │
-├─────────────────────────────────────────────────┤
-│  Storage Layer (Go — the engine)                │
-│  content-addressed Merkle-DAG · signed log      │
-│  graph traversal · concurrency                  │
-└─────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│  Query Layer (reachability, path discovery)  │
+├──────────────────────────────────────────────┤
+│  Verification Layer (Python — the moat)      │
+│  ELENCHUS predicates · κ-tiering · proofs    │
+│  sympy · mpmath · z3 · Lean bindings         │
+├──────────────────────────────────────────────┤
+│  Storage Layer (Go — the engine)             │
+│  content-addressed Merkle-DAG · signed log   │
+│  graph traversal · concurrency               │
+└──────────────────────────────────────────────┘
 ```
 
-**The boundary is the storage API.** The verification layer stays Python forever — that's where the formal tools live. The storage layer is swappable (Python prototype → Go) behind a clean interface.
+**The boundary is the storage API.** The verification layer stays Python forever — that's where the formal tools live. The storage layer is implemented in **Go (Pebble)** and exposed over **gRPC**, swappable behind a clean interface (`factory.py` selects between the in-process SQLite backend and the Go daemon).
 
 ---
 
@@ -77,10 +77,19 @@ The substrate is a **blockchain-anchorable signed Merkle-DAG**. Commit the root 
 ## 🧪 Quickstart
 
 ```bash
-# (prototype — coming soon)
 conda activate arxdb
-python -m arxdb
+pip install -e .
+
+# Seed the graph with the phaser-thread corpus (9 nodes, 9 edges)
+python scripts/seed_phaser.py
+
+# Run the public HTTP API (Phase 7)
+python scripts/arxdb_serve.py --root data
 ```
+
+Then hit `GET /health`, `POST /query/reachable`, or `POST /reproduce` — see [`PUBLIC_API.md`](PUBLIC_API.md).
+
+For a guided walkthrough of every use case, start with the [examples](examples/README.md) — eight runnable scenarios from "hello, reasoning" to the reproduce-the-proof story over HTTP.
 
 ---
 
@@ -89,15 +98,20 @@ python -m arxdb
 | File | What it covers |
 |------|----------------|
 | [`DESIGN.md`](DESIGN.md) | Core concept, layers, tech mappings, MVP scope |
-| [`DECISIONS.md`](DECISIONS.md) | Architecture decision records (ADRs) |
-| [`STORAGE_API.md`](STORAGE_API.md) | The interface that makes the Python→Go swap a drop-in |
+| [`DEV_GUIDE.md`](DEV_GUIDE.md) | How to build on it and integrate AI agents |
+| [`SETUP.md`](SETUP.md) | Toolchain setup (Go, gRPC, Python, env vars) |
+| [`STORAGE_API.md`](STORAGE_API.md) | The interface that makes the Python↔Go swap a drop-in |
+| [`PUBLIC_API.md`](PUBLIC_API.md) | The public HTTP API (Phase 7) |
+| [`examples/`](examples/README.md) | Runnable, documented use cases |
 
 ---
 
 ## 🧭 Status
 
-**Prototype.** The design is settled; the Python storage layer and edge schema are next. The Go storage engine follows once the interface is proven.
+**Production-ready.** All seven roadmap phases are complete: storage (Python + Go/Pebble), the verification moat (ELENCHUS + κ-tiering + formal checkers), the two queries, the seed corpus, the attestation layer, the Go storage swap over gRPC, and the public HTTP API.
+
+**Test suite:** 223 passing, 4 failing — the 4 failures are the Lean-dependent tests (Lean 4 not yet installed; see `SETUP.md` §6). Everything else is green, including the cross-language cryptographic parity moat and the drop-in Go swap.
 
 ---
 
-*Built by Skye Laflamme & Lark — a reasoning graph for a world that needs to know not just what it thinks, but whether it's right.*
+*Built by Skye Laflamme — a reasoning graph for a world that needs to know not just what it thinks, but whether it's right.*

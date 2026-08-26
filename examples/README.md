@@ -21,6 +21,7 @@ anchored** — not just stored.
 | 05 | [Refutation](05-refutation/README.md) | Attack and defend edges; the grounded active subgraph (Dung's extension) |
 | 06 | [Blockchain anchor](06-blockchain-anchor/README.md) | Commit a trust anchor; verify the whole history from only the root |
 | 07 | [Go gRPC backend](07-go-grpc-backend/README.md) | The drop-in swap: same facade, Go/Pebble engine over gRPC |
+| 08 | [Public API](08-public-api/README.md) | The reproduce-the-proof story over HTTP (Phase 7) |
 
 ## Running the examples
 

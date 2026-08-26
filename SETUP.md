@@ -62,7 +62,7 @@ pip install -e .            # core deps (editable install of the arxdb package)
 pip install pytest hypothesis sympy mpmath z3-solver
 ```
 
-> **Note:** the Lean checker (`checkers/lean.py`) additionally requires the
+> **Note:** the Lean checker (`checkers/lean_check.py`) additionally requires the
 > **Lean 4** theorem prover, which is **not yet installed** on the reference
 > machine. Four tests that exercise the Lean checker currently fail with
 > `HARD_VETO` for this reason. See §6.
@@ -197,7 +197,7 @@ export PATH="$PATH:$GOROOT/bin:$GOBIN:/home/ubuntu/protoc/bin"
 
 ## 6. Optional: Lean 4 (verification layer)
 
-The `checkers/lean.py` checker shells out to the **Lean 4** theorem prover to
+The `checkers/lean_check.py` checker shells out to the **Lean 4** theorem prover to
 verify formal proofs. It is **not installed** on the reference machine, so the
 four tests that exercise it fail with `HARD_VETO` (a pre-existing condition,
 unrelated to the Go swap).
@@ -212,7 +212,7 @@ toolchain:
 elan toolchain install leanprover/lean4:stable
 ```
 
-This is a Phase 7 (productization) concern, not a Phase 6 blocker.
+This is a post-Phase-7 follow-up (Lean is the one remaining toolchain gap).
 
 ---
 

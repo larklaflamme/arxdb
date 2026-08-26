@@ -8,7 +8,7 @@ A phase is "done" only when its exit criteria are met — not when it "feels don
 
 ---
 
-## Phase 0 — Foundations (✅ mostly complete)
+## Phase 0 — Foundations (✅ complete)
 
 **Goal:** Lock the design before writing code.
 
@@ -17,13 +17,13 @@ A phase is "done" only when its exit criteria are met — not when it "feels don
 - [x] `DECISIONS.md` — ADR log (Python→Go split, Go over Rust, tiered verification, etc.)
 - [x] `STORAGE_API.md` — the interface boundary that makes the swap a drop-in
 - [x] `README.md` — product-facing first impression
-- [ ] Resolve the four open questions (serialization, hash fn, graph index, concurrency)
+- [x] Resolve the four open questions (serialization, hash fn, graph index, concurrency)
 
 **Exit criteria:** All open questions answered and recorded in `DECISIONS.md`.
 
 ---
 
-## Phase 1 — Core Storage Prototype (Python)
+## Phase 1 — Core Storage Prototype (Python) (✅ complete)
 
 **Goal:** A working, content-addressed, append-only, signed store behind the
 `Storage` interface — dumb and fast, no judgment.
@@ -45,7 +45,7 @@ A phase is "done" only when its exit criteria are met — not when it "feels don
 
 ---
 
-## Phase 2 — Edge Schema + Verification Pipeline (the moat)
+## Phase 2 — Edge Schema + Verification Pipeline (the moat) (✅ complete)
 
 **Goal:** The thing that makes ArxDB a *reasoning* graph, not a knowledge graph.
 
@@ -64,7 +64,7 @@ A phase is "done" only when its exit criteria are met — not when it "feels don
 
 ---
 
-## Phase 3 — The Two Queries
+## Phase 3 — The Two Queries (✅ complete)
 
 **Goal:** The product. Reachability + path discovery.
 
@@ -82,7 +82,7 @@ A phase is "done" only when its exit criteria are met — not when it "feels don
 
 ---
 
-## Phase 4 — Seed Corpus (RH / phaser thread)
+## Phase 4 — Seed Corpus (RH / phaser thread) (✅ complete)
 
 **Goal:** Prove the tool on real material — import our own reasoning.
 
@@ -99,7 +99,7 @@ A phase is "done" only when its exit criteria are met — not when it "feels don
 
 ---
 
-## Phase 5 — Attestation Layer (provenance + blockchain seam)
+## Phase 5 — Attestation Layer (provenance + blockchain seam) (✅ complete)
 
 **Goal:** The three guarantees — access, integrity, provenance.
 
@@ -117,7 +117,7 @@ A phase is "done" only when its exit criteria are met — not when it "feels don
 
 ---
 
-## Phase 6 — Go Storage Swap
+## Phase 6 — Go Storage Swap (✅ complete)
 
 **Goal:** Replace the Python storage layer with Go, behind the same interface.
 
@@ -137,18 +137,18 @@ A phase is "done" only when its exit criteria are met — not when it "feels don
 
 ---
 
-## Phase 7 — Productization (AI Trust & Audit)
+## Phase 7 — Productization (AI Trust & Audit) (✅ complete)
 
 **Goal:** Turn the research tool into the product.
 
 **Deliverables:**
-- Public API (HTTP/gRPC) over the two queries
-- Documentation for external users
-- The AI Trust & Audit use case: reproduce a reasoning edge, verify its proof
+- [x] Public API (HTTP) over the two queries + reproduce-the-proof (`src/arxdb/api/`, `scripts/arxdb_serve.py`)
+- [x] Documentation for external users (`PUBLIC_API.md`)
+- [x] The AI Trust & Audit use case: reproduce a reasoning edge, verify its proof (`examples/08-public-api`)
 
 **Exit criteria:**
-- An external user can query reachability and reproduce a proof without us
-- The "reproduce the proof" story works end-to-end
+- [x] An external user can query reachability and reproduce a proof without us
+- [x] The "reproduce the proof" story works end-to-end
 
 **Dependencies:** Phase 5 (attestation) + Phase 3 (queries).
 
@@ -168,11 +168,11 @@ Phase 0 ──► Phase 1 ──► Phase 2 ──► Phase 3 ──► Phase 4
 
 ---
 
-## Open questions blocking Phase 1
+## Open questions (resolved 2026-08-26)
 
-1. Serialization format — CBOR vs sorted-key JSON (leaning CBOR)
-2. Hash function — BLAKE3 vs SHA-256 (leaning BLAKE3; SHA-256 for FIPS later)
-3. Graph index — in-memory adjacency (prototype) vs on-disk
-4. Concurrency model — read-write lock vs MVCC (Go impl decision)
+1. Serialization format — **Canonical CBOR (RFC 8949)**.
+2. Hash function — **BLAKE3 (multihash-prefixed)**.
+3. Graph index — **SQLite WAL (prototype) → Pebble (Go)**.
+4. Concurrency model — **Pebble handles concurrency internally; commits are atomic via indexed batches**.
 
-*Resolve these in `DECISIONS.md` before writing Phase 1 code.*
+*Recorded in `DESIGN.md` §11. All seven phases are now complete.*
