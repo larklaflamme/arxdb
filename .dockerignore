@@ -1,0 +1,23 @@
+# VCS
+.git
+.gitignore
+
+# Runtime store — never ship content-addressed blobs or the index DB
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+
+# Tooling
+.pytest_cache/
+.vscode/
+
+# Not needed in the image
+tests/
+examples/
