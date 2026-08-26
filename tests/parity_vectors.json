@@ -1,0 +1,427 @@
+{
+  "meta": {
+    "generator": "python",
+    "cbor2": "6.1.4",
+    "blake3": "1.0.9",
+    "cryptography": "50.0.1",
+    "seed_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "public_key_hex": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
+    "fixed_timestamp_ns": 1700000000000000000
+  },
+  "cbor": [
+    {
+      "name": "empty_bytes",
+      "input": {
+        "$b": ""
+      },
+      "expected": "40"
+    },
+    {
+      "name": "single_zero_byte",
+      "input": {
+        "$b": "00"
+      },
+      "expected": "4100"
+    },
+    {
+      "name": "hash_zeros",
+      "input": {
+        "$b": "1e200000000000000000000000000000000000000000000000000000000000000000"
+      },
+      "expected": "58221e200000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "name": "hash_ff",
+      "input": {
+        "$b": "1e20ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "expected": "58221e20ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    },
+    {
+      "name": "empty_string",
+      "input": "",
+      "expected": "60"
+    },
+    {
+      "name": "ascii_string",
+      "input": "hello world",
+      "expected": "6b68656c6c6f20776f726c64"
+    },
+    {
+      "name": "unicode_string",
+      "input": "héllo wörld 你好",
+      "expected": "7468c3a96c6c6f2077c3b6726c6420e4bda0e5a5bd"
+    },
+    {
+      "name": "int_0",
+      "input": {
+        "$i": "0"
+      },
+      "expected": "00"
+    },
+    {
+      "name": "int_23",
+      "input": {
+        "$i": "23"
+      },
+      "expected": "17"
+    },
+    {
+      "name": "int_24",
+      "input": {
+        "$i": "24"
+      },
+      "expected": "1818"
+    },
+    {
+      "name": "int_255",
+      "input": {
+        "$i": "255"
+      },
+      "expected": "18ff"
+    },
+    {
+      "name": "int_256",
+      "input": {
+        "$i": "256"
+      },
+      "expected": "190100"
+    },
+    {
+      "name": "int_65535",
+      "input": {
+        "$i": "65535"
+      },
+      "expected": "19ffff"
+    },
+    {
+      "name": "int_65536",
+      "input": {
+        "$i": "65536"
+      },
+      "expected": "1a00010000"
+    },
+    {
+      "name": "int_2pow32",
+      "input": {
+        "$i": "4294967296"
+      },
+      "expected": "1b0000000100000000"
+    },
+    {
+      "name": "int_max_int64",
+      "input": {
+        "$i": "9223372036854775807"
+      },
+      "expected": "1b7fffffffffffffff"
+    },
+    {
+      "name": "int_neg1",
+      "input": {
+        "$i": "-1"
+      },
+      "expected": "20"
+    },
+    {
+      "name": "int_neg24",
+      "input": {
+        "$i": "-24"
+      },
+      "expected": "37"
+    },
+    {
+      "name": "int_neg25",
+      "input": {
+        "$i": "-25"
+      },
+      "expected": "3818"
+    },
+    {
+      "name": "int_min_int64",
+      "input": {
+        "$i": "-9223372036854775808"
+      },
+      "expected": "3b7fffffffffffffff"
+    },
+    {
+      "name": "float_0",
+      "input": {
+        "$f": 0.0
+      },
+      "expected": "f90000"
+    },
+    {
+      "name": "float_1",
+      "input": {
+        "$f": 1.0
+      },
+      "expected": "f93c00"
+    },
+    {
+      "name": "float_half",
+      "input": {
+        "$f": 0.5
+      },
+      "expected": "f93800"
+    },
+    {
+      "name": "float_1p5",
+      "input": {
+        "$f": 1.5
+      },
+      "expected": "f93e00"
+    },
+    {
+      "name": "float_pi",
+      "input": {
+        "$f": 3.14
+      },
+      "expected": "fb40091eb851eb851f"
+    },
+    {
+      "name": "float_neg2p5",
+      "input": {
+        "$f": -2.5
+      },
+      "expected": "f9c100"
+    },
+    {
+      "name": "float_1e300",
+      "input": {
+        "$f": 1e+300
+      },
+      "expected": "fb7e37e43c8800759c"
+    },
+    {
+      "name": "true",
+      "input": true,
+      "expected": "f5"
+    },
+    {
+      "name": "false",
+      "input": false,
+      "expected": "f4"
+    },
+    {
+      "name": "null",
+      "input": null,
+      "expected": "f6"
+    },
+    {
+      "name": "empty_list",
+      "input": [],
+      "expected": "80"
+    },
+    {
+      "name": "list_ints",
+      "input": [
+        {
+          "$i": "1"
+        },
+        {
+          "$i": "2"
+        },
+        {
+          "$i": "3"
+        }
+      ],
+      "expected": "83010203"
+    },
+    {
+      "name": "nested_list",
+      "input": [
+        [
+          {
+            "$i": "1"
+          },
+          {
+            "$i": "2"
+          }
+        ],
+        [
+          {
+            "$i": "3"
+          },
+          [
+            {
+              "$i": "4"
+            },
+            {
+              "$i": "5"
+            }
+          ]
+        ]
+      ],
+      "expected": "828201028203820405"
+    },
+    {
+      "name": "empty_map",
+      "input": {},
+      "expected": "a0"
+    },
+    {
+      "name": "map_str_keys",
+      "input": {
+        "b": {
+          "$i": "1"
+        },
+        "a": {
+          "$i": "2"
+        },
+        "aa": {
+          "$i": "3"
+        }
+      },
+      "expected": "a361610261620162616103"
+    },
+    {
+      "name": "nested_map",
+      "input": {
+        "a": [
+          {
+            "$i": "1"
+          },
+          {
+            "b": {
+              "$i": "2"
+            }
+          }
+        ],
+        "c": null
+      },
+      "expected": "a261618201a16162026163f6"
+    },
+    {
+      "name": "signature_message",
+      "input": [
+        {
+          "$i": "0"
+        },
+        {
+          "$i": "1700000000000000000"
+        },
+        {
+          "$b": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8"
+        },
+        {
+          "$b": "1e200000000000000000000000000000000000000000000000000000000000000000"
+        },
+        {
+          "$b": "1e200000000000000000000000000000000000000000000000000000000000000000"
+        }
+      ],
+      "expected": "85001b17979cfe362a0000582003a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b858221e20000000000000000000000000000000000000000000000000000000000000000058221e200000000000000000000000000000000000000000000000000000000000000000"
+    },
+    {
+      "name": "edge_payload",
+      "input": {
+        "type": "citation",
+        "rule": "Euler product + explicit formula",
+        "premises": [
+          "1e200000000000000000000000000000000000000000000000000000000000000000",
+          "1e20ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        ],
+        "conclusion": "1e200000000000000000000000000000000000000000000000000000000000000000",
+        "kappa": "K1",
+        "domain": "number_theory"
+      },
+      "expected": "a66472756c65782045756c65722070726f64756374202b206578706c6963697420666f726d756c616474797065686369746174696f6e656b61707061624b3166646f6d61696e6d6e756d6265725f7468656f7279687072656d697365738278443165323030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030784431653230666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666a636f6e636c7573696f6e78443165323030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030"
+    }
+  ],
+  "blake3": [
+    {
+      "name": "empty",
+      "input_hex": "",
+      "expected": "1e20af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262"
+    },
+    {
+      "name": "hello",
+      "input_hex": "68656c6c6f",
+      "expected": "1e20ea8f163db38682925e4491c5e58d4bb3506ef8c14eb78a86e908c5624a67200f"
+    },
+    {
+      "name": "zeros_32",
+      "input_hex": "0000000000000000000000000000000000000000000000000000000000000000",
+      "expected": "1e202ada83c1819a5372dae1238fc1ded123c8104fdaa15862aaee69428a1820fcda"
+    },
+    {
+      "name": "unicode",
+      "input_hex": "68c3a96c6c6f2077c3b6726c6420e4bda0e5a5bd",
+      "expected": "1e20c10a2a77aba066e3bbcbea0d1efe6444dcecd671d47103ccc27be341c1294883"
+    },
+    {
+      "name": "bytes_0_255",
+      "input_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+      "expected": "1e204a495ba42461748eca8fdad618f976aa726cc2903de9fcb40735a786ac1c196b"
+    },
+    {
+      "name": "edge_payload_cbor",
+      "input_hex": "a66472756c65782045756c65722070726f64756374202b206578706c6963697420666f726d756c616474797065686369746174696f6e656b61707061624b3166646f6d61696e6d6e756d6265725f7468656f7279687072656d697365738278443165323030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030784431653230666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666666a636f6e636c7573696f6e78443165323030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030303030",
+      "expected": "1e2023500c32d89ee7ed1c07a4c691049c7c8ece546325ede5826cd090f38df1d8e1"
+    }
+  ],
+  "ed25519": [
+    {
+      "name": "empty",
+      "message_hex": "",
+      "expected": "9ca53579530654d5c3df77089ef45eda613e2fedf670e96bedac4639504e5845ef4b95d5793077233dd16817b2532e9c5525872a73a4ad74b759369a9e05c102"
+    },
+    {
+      "name": "hello",
+      "message_hex": "68656c6c6f",
+      "expected": "e1a7fca94a835127885b99e2eba733d6ee5bf5dc463ed8385eb6f1dcaa1117c0f151750a10f46f5b3796a91203578f702c85c67c334b5689a516284d499f710f"
+    },
+    {
+      "name": "quick_brown_fox",
+      "message_hex": "74686520717569636b2062726f776e20666f78",
+      "expected": "3993917a4390880917fabd2543082954317e9e6e0814a1809d7d79c0ca9f7f384294a9faeeefcd6ecb86a8eaab0a0632954810658336ae05cf06e18079aee60c"
+    },
+    {
+      "name": "signature_message",
+      "message_hex": "85001b17979cfe362a0000582003a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b858221e20000000000000000000000000000000000000000000000000000000000000000058221e200000000000000000000000000000000000000000000000000000000000000000",
+      "expected": "fe9bee63e9bdbf079e5cab40de9ad21e420a9f4d710a9e54331f04524115c5a04a3dd55394d1e4212e47d693604c3f32c29ee2559b30c7f1828c5bf0e36aae0d"
+    }
+  ],
+  "merkle": [
+    {
+      "name": "empty",
+      "leaf_hexes": [],
+      "expected": "1e20ab13bedf42e84bae0f7c62c7dd6a8ada571e8829bed6ea558217f0361b5e25d0"
+    },
+    {
+      "name": "single",
+      "leaf_hexes": [
+        "1e2096c464344fb8ad35c579a648d6e15fd87819b0acdac8b6905800f6a0213790e0"
+      ],
+      "expected": "1e20722da34dac61a600a7a9ee721322f801867cdf2d848e8e14f4474dbf52ca8712"
+    },
+    {
+      "name": "two",
+      "leaf_hexes": [
+        "1e2096c464344fb8ad35c579a648d6e15fd87819b0acdac8b6905800f6a0213790e0",
+        "1e205b6d5f0f416750f30ec5e8fb23e3cfdb5c5ee07c284d4d7eea82ee5f354e1c3d"
+      ],
+      "expected": "1e20f58a64e24b077b44fd5fc084869d04d4ae26efe7761953b2f8ed38949e6173e4"
+    },
+    {
+      "name": "three",
+      "leaf_hexes": [
+        "1e2096c464344fb8ad35c579a648d6e15fd87819b0acdac8b6905800f6a0213790e0",
+        "1e205b6d5f0f416750f30ec5e8fb23e3cfdb5c5ee07c284d4d7eea82ee5f354e1c3d",
+        "1e20fb718a37e9ad4f44ddb3ec4398598d320d9deb2dcc2e31d51f24c4fb9113c397"
+      ],
+      "expected": "1e2005d81ee273c0c24b29c4041428c099662ed03f5b7f9925439e901717f76a4e08"
+    },
+    {
+      "name": "five",
+      "leaf_hexes": [
+        "1e2096c464344fb8ad35c579a648d6e15fd87819b0acdac8b6905800f6a0213790e0",
+        "1e205b6d5f0f416750f30ec5e8fb23e3cfdb5c5ee07c284d4d7eea82ee5f354e1c3d",
+        "1e20fb718a37e9ad4f44ddb3ec4398598d320d9deb2dcc2e31d51f24c4fb9113c397",
+        "1e20f955f70d59d357cdd97b310a482d2c6cd680ec09d9d163b16406a46abeb6a92f",
+        "1e20ca73f70cfde7870a6fe9934c6a9cfbc8417c8d8d7b6471221a23add706c32220"
+      ],
+      "expected": "1e20627f7e2e8d5283ff0dd1c47fda4c8747ebef19af81ce8f853977c9b565e4e9e8"
+    }
+  ]
+}

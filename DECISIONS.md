@@ -192,3 +192,23 @@ the individual-verifier signal that is the whole point of the attestation layer)
 - Concurrency model for the Go storage engine (read-write lock vs MVCC).
 - Exact argumentation semantics for refutation resolution (Dung grounded vs
   preferred extensions).
+
+---
+
+## ADR-009 amendment — Pebble (not BadgerDB) for the Go storage engine
+
+**Status:** Accepted (2026-08-26)
+
+**Decision:** The Go production storage engine uses **Pebble**
+(`github.com/cockroachdb/pebble`), not BadgerDB.
+
+**Why:** Pebble is actively developed (maintained by CockroachDB), has better
+write amplification, and is the forward-looking choice. BadgerDB is in
+maintenance mode. For a storage-only swap (append + read-by-key), Pebble's
+transaction API gives us the atomic `CommitEdgeTx` we need.
+
+**Rejected:** BadgerDB (maintenance mode, less active development).
+
+**Note:** This resolves the ADR-009 "BadgerDB or Pebble" ambiguity. The
+remaining open decision (concurrency model) is now answered by Pebble's
+snapshot + batch semantics.
