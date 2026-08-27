@@ -29,6 +29,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # The package (importable via PYTHONPATH) + the serve script.
 COPY src/ ./src/
 COPY scripts/arxdb_serve.py ./scripts/arxdb_serve.py
+COPY scripts/seed_phaser.py ./scripts/seed_phaser.py
 ENV PYTHONPATH=/app/src
 
 # The Go daemon binary.

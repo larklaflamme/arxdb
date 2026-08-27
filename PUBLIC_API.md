@@ -89,6 +89,15 @@ the target's dependency cone, each with its `conclusion`, `premises`,
 `blocking_nodes`, and `rule`. A leaf (no incoming edge at all) is reported
 with empty premises — the signal that it needs a definition/axiom.
 
+### `GET /query/graph`
+
+The whole reasoning graph — every node and every edge. The visualizer's data
+source. No request body.
+
+Response: `nodes` (each with `claim`, `domain`, `polarity`, `node_id`) and
+`edges` (each with `type`, `premises`, `conclusion`, `rule`, `verdict`,
+`kappa`, `edge_hash`).
+
 ### `POST /reproduce`
 
 **The core story.** Re-verify a reasoning step independently.

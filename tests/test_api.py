@@ -163,3 +163,23 @@ def test_commit_rejects_bad_deduction(app):
     )
     assert result["rejected"] is True
     assert result["edge"] is None
+
+
+def test_query_graph_returns_nodes_and_edges(app):
+    _commit_definition(app)
+    _commit_deduction(app)
+
+    g = app.query_graph()
+
+    # Two distinct claims: "x > 0" and "x + 1 > 0".
+    claims = {n["claim"] for n in g["nodes"]}
+    assert claims == {"x > 0", "x + 1 > 0"}
+
+    # One definition edge + one deduction edge.
+    assert len(g["edges"]) == 2
+
+    # Every edge's conclusion resolves to a node in the graph.
+    node_ids = {n["node_id"] for n in g["nodes"]}
+    for e in g["edges"]:
+        assert e["conclusion"] in node_ids
+        assert e["kappa"] in {"K1", "K3"}

@@ -2,6 +2,7 @@
 #
 #   docker compose up -d
 #   curl http://localhost:8080/health
+#   open http://localhost:3000        # the visualizer
 #
 # The Go/Pebble storage engine and the API's keypair/roster persist in the
 # named volume `arxdb-data` (mounted at /data).
@@ -14,6 +15,16 @@ services:
       - arxdb-data:/data
     environment:
       ARXDB_BACKEND: grpc
+    restart: unless-stopped
+
+  visualizer:
+    build: ./visualizer
+    ports:
+      - "3000:3000"
+    environment:
+      ARXDB_API_URL: http://arxdb:8080
+    depends_on:
+      - arxdb
     restart: unless-stopped
 
 volumes:

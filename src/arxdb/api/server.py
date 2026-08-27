@@ -17,6 +17,7 @@ Endpoints:
   GET  /health                 -> {"status": "ok", "version": ...}
   POST /query/reachable        -> reachability result
   POST /query/path             -> path-discovery result
+  GET  /query/graph            -> the whole graph (nodes + edges)
   POST /reproduce              -> the full reproduce-the-proof report
   POST /attest                 -> attestation (provenance/integrity/binding)
   GET  /anchor                 -> the anchor record (root hash, count, roster)
@@ -186,6 +187,25 @@ class ArxDBApp:
             ],
         }
 
+    def query_graph(self) -> dict:
+        """Return the whole reasoning graph: every node and every edge.
+
+        The visualizer's data source. Resolves all content addresses to full
+        records via the ObjectStore (never reaching into SQLite), so it works
+        identically for the SQLite and gRPC backends.
+        """
+        nodes = []
+        for h in self.storage.graph.all_nodes():
+            n = resolve_node(h, self.storage)
+            if n is not None:
+                nodes.append(_node_to_dict(n))
+        edges = []
+        for h in self.storage.graph.all_edges():
+            e = resolve_edge(h, self.storage)
+            if e is not None:
+                edges.append(_edge_to_dict(e))
+        return {"nodes": nodes, "edges": edges}
+
     # -- reproduce / attest -------------------------------------------------
 
     def reproduce(self, body: dict) -> dict:
@@ -320,6 +340,9 @@ def _make_handler(app: ArxDBApp) -> type[BaseHTTPRequestHandler]:
                     return
                 if method == "GET" and path == "/anchor":
                     self._send_json(200, app.anchor_record())
+                    return
+                if method == "GET" and path == "/query/graph":
+                    self._send_json(200, app.query_graph())
                     return
                 body = self._read_body()
                 if method == "POST" and path == "/query/reachable":

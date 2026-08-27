@@ -37,11 +37,18 @@ def _load_or_create_keypair(root: Path) -> tuple[bytes, bytes]:
 
 
 def _load_or_create_roster(root: Path, pub: bytes) -> Roster:
+    """Load the shared roster, ensuring this server's agent is bound.
+
+    The roster is a shared trust anchor: the seed script binds "Skye" (corpus
+    edges) and this server binds "arxdb-server" (API-committed edges). Load the
+    existing roster and *merge* (never overwrite) so both identities survive
+    regardless of whether the seed or the server ran first.
+    """
     path = root / _ROSTER_FILE
-    if path.exists():
-        return Roster.from_bytes(path.read_bytes())
-    roster = Roster(entries={_SERVER_AGENT: pub})
-    path.write_bytes(roster.roster_bytes())
+    roster = Roster.from_bytes(path.read_bytes()) if path.exists() else Roster()
+    if _SERVER_AGENT not in roster.entries:
+        roster = Roster(entries={**roster.entries, _SERVER_AGENT: pub})
+        path.write_bytes(roster.roster_bytes())
     return roster
 
 

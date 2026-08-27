@@ -12,7 +12,7 @@ the seed signer key and runs `verify_edge_attestation` on every committed edge
 agent rather than an anonymous 32-byte key.
 
 Usage:
-    python scripts/seed_phaser.py [--root PATH]
+    python scripts/seed_phaser.py [--root PATH] [--backend sqlite|grpc] [--socket PATH]
 
 The signer keypair is persisted to `<root>/seed_keypair.bin` so that the
 signer identity — and therefore every edge's content address — is stable
@@ -40,12 +40,15 @@ from arxdb.query.resolve import resolve_edge
 from arxdb.seed.corpus import CORPUS_EDGES, CORPUS_NODES
 from arxdb.storage.hashing import hash_bytes
 from arxdb.storage.keys import generate_keypair
+from arxdb.storage.factory import create_storage
 from arxdb.storage.storage import Storage
 from arxdb.verification.commit import verify_and_commit
 from arxdb.verification.schema import Edge, EdgeType, Kappa, Node
 from arxdb.verification.verifier import verify
 
 _KEYPAIR_FILE = "seed_keypair.bin"
+_SERVER_KEYPAIR_FILE = "server_keypair.bin"
+_SERVER_AGENT = "arxdb-server"
 _KEYPAIR_SIZE = 64  # 32-byte private seed + 32-byte public key
 _ROSTER_FILE = "roster.bin"
 _ANCHOR_FILE = "anchor.bin"
@@ -177,6 +180,25 @@ def _load_or_create_keypair(root: Path) -> tuple[bytes, bytes]:
     return priv, pub
 
 
+def _load_or_create_server_keypair(root: Path) -> tuple[bytes, bytes]:
+    """Load (or create) the API server's keypair so the roster can bind it.
+
+    The seed and the server share one root and one roster. The server signs
+    API-committed edges as "arxdb-server"; the seed signs corpus edges as
+    "Skye". Both identities must be in the genesis roster so attestation
+    resolves either signer. This loads the *same* `server_keypair.bin` the
+    server uses, so the binding is stable regardless of run order.
+    """
+    path = root / _SERVER_KEYPAIR_FILE
+    if path.exists():
+        data = path.read_bytes()
+        if len(data) == _KEYPAIR_SIZE:
+            return data[:32], data[32:]
+    priv, pub = generate_keypair()
+    path.write_bytes(priv + pub)
+    return priv, pub
+
+
 def _print_report(rows: list[SeedRow]) -> None:
     """Print the expected-vs-actual κ report."""
     print("====================== ARXDB SEED REPORT: PHASER THREAD ======================")
@@ -264,16 +286,31 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--root",
         type=Path,
-        default=Path("data/arxdb-seed"),
-        help="Storage root directory (default: data/arxdb-seed).",
+        default=Path("data"),
+        help="Filesystem root for keypair/roster/anchor files (and SQLite data when backend=sqlite).",
+    )
+    parser.add_argument(
+        "--backend",
+        choices=["sqlite", "grpc"],
+        default="sqlite",
+        help="Storage backend (default: sqlite). grpc delegates to a running arxdbd daemon.",
+    )
+    parser.add_argument(
+        "--socket",
+        default="/tmp/arxdb.sock",
+        help="gRPC UNIX socket path (grpc backend only).",
     )
     args = parser.parse_args(argv)
 
     root: Path = args.root
     root.mkdir(parents=True, exist_ok=True)
     priv, pub = _load_or_create_keypair(root)
-    storage = Storage(root, priv, pub)
-    roster = Roster(entries={"Skye": pub})
+    _, server_pub = _load_or_create_server_keypair(root)
+    storage = create_storage(root, priv, pub, backend=args.backend, socket_path=args.socket)
+    # The genesis roster binds both signers: "Skye" (corpus edges) and
+    # "arxdb-server" (API-committed edges). Built complete *before* seeding so
+    # the committed roster (log entry 0) matches the on-disk roster exactly.
+    roster = Roster(entries={"Skye": pub, _SERVER_AGENT: server_pub})
 
     try:
         commit_roster(storage, roster)

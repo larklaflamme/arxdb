@@ -1,9 +1,15 @@
-"""Tests for Phase 4: the phaser-thread seed corpus and its import script.
+"""Tests for Phase 4: the RH seed corpus and its import script.
 
 These tests exercise the corpus *data* (structure, purity) and the seed
 script's `seed()` function (which ingests through the public
 `verify_and_commit` pipeline), plus the two exit-criteria queries the seed
 report prints.
+
+v0.4: the corpus grew from the phaser thread (9 nodes/9 edges) to the full RH
+map (23 nodes/23 edges) spanning five threads. v0.5: cross-thread bridges and
+three hub nodes (positivity / primes-as-spectrum / balance point) connect the
+map into a single component (26 nodes/45 edges). The count assertions below
+track that growth.
 """
 
 from __future__ import annotations
@@ -32,25 +38,55 @@ def _storage(tmp_root, keypair) -> Storage:
 
 # --- corpus structure -------------------------------------------------------
 
-
-def test_corpus_has_nine_nodes_and_edges():
-    assert len(CORPUS_NODES) == 9
-    assert len(CORPUS_EDGES) == 9
+def test_corpus_has_twenty_six_nodes_and_forty_five_edges():
+    assert len(CORPUS_NODES) == 26
+    assert len(CORPUS_EDGES) == 45
     assert [n.key for n in CORPUS_NODES] == [
         "N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9",
+        "N10", "N11", "N12", "N13", "N14", "N15", "N16", "N17",
+        "N18", "N19", "N20", "N21", "N22", "N23", "N24", "N25", "N26",
     ]
     assert [e.key for e in CORPUS_EDGES] == [
         "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9",
+        "E10", "E11", "E12", "E13", "E14", "E15", "E16", "E17",
+        "E18", "E19", "E20", "E21", "E22", "E23", "E24", "E25",
+        "E26", "E27", "E28", "E29", "E30", "E31", "E32", "E33",
+        "E34", "E35", "E36", "E37", "E38", "E39", "E40", "E41",
+        "E42", "E43", "E44", "E45",
     ]
 
 
 def test_e9_is_hilbert_polya_citation():
-    e9 = CORPUS_EDGES[-1]
-    assert e9.key == "E9"
+    e9 = next(e for e in CORPUS_EDGES if e.key == "E9")
     assert e9.edge_type == EdgeType.CITATION
     assert e9.premise_keys == ("N9",)
     assert e9.conclusion_key == "N7"
     assert e9.expected_kappa == Kappa.K1
+
+
+def test_grown_corpus_kappa_is_honest():
+    """The grown corpus must not inflate κ: no κ3, models at κ0, citations κ1.
+
+    This is the central finding the corpus is designed to surface: our RH work
+    is a map of a wall, not a pile of proven theorems. Analytic number theory
+    is not Z3/Lean-checkable, so the honest κ is κ1 (citation) for established
+    results and κ0 (analogy) for models and the conjecture itself.
+    """
+    # No edge may claim κ3 (a Z3/Lean-checked deduction) — none of our RH
+    # reasoning is first-order-arithmetic-checkable.
+    assert all(e.expected_kappa != Kappa.K3 for e in CORPUS_EDGES)
+
+    # The model-layer edges (RG, Janus, Lee-Yang, de Branges, balance) are
+    # analogies at κ0.
+    model_edges = {"E13", "E16", "E20", "E21", "E22", "E23"}
+    for e in CORPUS_EDGES:
+        if e.key in model_edges:
+            assert e.edge_type == EdgeType.ANALOGY, e.key
+            assert e.expected_kappa == Kappa.K0, e.key
+
+    # The conjecture itself (RH) is κ0.
+    e8 = next(e for e in CORPUS_EDGES if e.key == "E8")
+    assert e8.expected_kappa == Kappa.K0
 
 
 def test_corpus_is_pure_data():
@@ -69,12 +105,11 @@ def test_corpus_is_pure_data():
 
 # --- seed ingestion ---------------------------------------------------------
 
-
 def test_seed_all_edges_match(tmp_root, keypair):
     s = _storage(tmp_root, keypair)
     _, pub = keypair
     rows = seed(s, pub)
-    assert len(rows) == 9
+    assert len(rows) == 45
     assert all(r.status == "MATCH" for r in rows)
     assert all(r.actual_kappa == r.expected_kappa for r in rows)
 
@@ -84,12 +119,11 @@ def test_seed_idempotent(tmp_root, keypair):
     _, pub = keypair
     seed(s, pub)
     rows2 = seed(s, pub)
-    assert len(rows2) == 9
+    assert len(rows2) == 45
     assert all(r.status == "SKIP" for r in rows2)
 
 
 # --- exit-criteria queries --------------------------------------------------
-
 
 def test_query_a_phaser_differs_from_berry_keating(tmp_root, keypair):
     s = _storage(tmp_root, keypair)
@@ -147,7 +181,7 @@ def test_seed_edges_resolve_to_skye(tmp_root, keypair):
 
     roster = Roster(entries={"Skye": pub})
     results = verify_seed_attestation(s, roster, pub)
-    assert len(results) == 9
+    assert len(results) == 45
     assert all(ok for _, ok, _ in results)
     assert all(agent == "Skye" for _, _, agent in results)
 
@@ -181,8 +215,8 @@ def test_full_ceremony_persists_roster_and_anchor(tmp_root, keypair):
     seed(s, pub)
     rec = persist_anchor(s, roster, tmp_root)
 
-    # root_hash covers roster (entry 0) + 9 edges = 10 entries.
-    assert rec.entry_count == 10
+    # root_hash covers roster (entry 0) + 45 edges = 46 entries.
+    assert rec.entry_count == 46
     assert rec.roster_hash == roster.roster_hash()
     assert verify_history(s, rec.root_hash) is True
 

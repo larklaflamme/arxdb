@@ -26,6 +26,14 @@ if [ "$BACKEND" = "grpc" ]; then
     fi
 fi
 
+# Seed the RH corpus (idempotent) into the same backend the server will use.
+# For grpc this writes the corpus through the daemon into Pebble; for sqlite it
+# writes directly into $API_ROOT. Re-running on a warm volume is a no-op.
+python scripts/seed_phaser.py \
+    --root "$API_ROOT" \
+    --backend "$BACKEND" \
+    --socket "$SOCKET"
+
 # Run the HTTP API in the foreground. tini (-g) forwards SIGTERM/SIGINT to the
 # whole process group, so the daemon shuts down gracefully alongside the API.
 exec python scripts/arxdb_serve.py \
