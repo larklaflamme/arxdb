@@ -273,6 +273,39 @@ CORPUS_NODES: tuple[CorpusNode, ...] = (
             "equilibrium"
         ),
     ),
+    CorpusNode(
+        key="N27",
+        claim=(
+            "the primes<->zeros correspondence is a self-encoding double "
+            "helix: two complementary strands (primes = arithmetic, zeros = "
+            "spectral) linked by the functional equation, with the phase "
+            "arg zeta as the twist"
+        ),
+    ),
+    CorpusNode(
+        key="N28",
+        claim=(
+            "the Riemann-von Mangoldt formula N(T) = theta(T)/pi + 1 + S(T) "
+            "is the topological identity Lk = Tw + Wr (Calugareanu-White-"
+            "Fuller): gamma factor = twist, zeta = writhe, N(T) = linking "
+            "number"
+        ),
+    ),
+    CorpusNode(
+        key="N29",
+        claim=(
+            "RH is equivalent to the mean writhe being bounded: "
+            "integral_0^T S(t) dt = O(log T)"
+        ),
+    ),
+    CorpusNode(
+        key="N30",
+        claim=(
+            "RH is equivalent to the pointwise bound S(T) = O(log T / "
+            "log log T)"
+        ),
+        polarity=False,
+    ),
 )
 
 
@@ -683,5 +716,62 @@ CORPUS_EDGES: tuple[CorpusEdge, ...] = (
         rule="failure of the naive Berry-Keating operator -> the Hilbert-Polya operator is a genuine open problem",
         expected_kappa=Kappa.K0,
         source="cross-thread bridge: the negative result N5 is what makes N9 open",
+    ),
+    CorpusEdge(
+        key="E46",
+        edge_type=EdgeType.ANALOGY,
+        premise_keys=("N3",),
+        conclusion_key="N28",
+        rule="von Mangoldt formula read topologically as Lk = Tw + Wr",
+        expected_kappa=Kappa.K0,
+        source="zeta-curve-writhe/results.md, NOEMA 820255c9c327",
+    ),
+    CorpusEdge(
+        key="E47",
+        edge_type=EdgeType.ANALOGY,
+        premise_keys=("N2",),
+        conclusion_key="N27",
+        rule="phase arg zeta = the twist of the helix",
+        expected_kappa=Kappa.K0,
+        source="double-helix/results.md",
+    ),
+    CorpusEdge(
+        key="E48",
+        edge_type=EdgeType.ANALOGY,
+        premise_keys=("N27",),
+        conclusion_key="N28",
+        rule="helix twist -> writhe decomposition",
+        expected_kappa=Kappa.K0,
+        source="double-helix/results.md",
+    ),
+    CorpusEdge(
+        key="E49",
+        edge_type=EdgeType.ANALOGY,
+        premise_keys=("N28",),
+        conclusion_key="N29",
+        rule="writhe = S(T), so RH constrains the mean writhe",
+        expected_kappa=Kappa.K0,
+        source="zeta-curve-writhe/results.md",
+    ),
+    CorpusEdge(
+        key="E50",
+        edge_type=EdgeType.REFUTATION,
+        premise_keys=(),
+        conclusion_key="N30",
+        rule=(
+            "Littlewood 1924: S(T) = O(log T / log log T) is unconditional, "
+            "so it cannot be equivalent to RH"
+        ),
+        expected_kappa=Kappa.K1,
+        source="zeta-curve-writhe correction (this session)",
+    ),
+    CorpusEdge(
+        key="E51",
+        edge_type=EdgeType.CITATION,
+        premise_keys=(),
+        conclusion_key="N29",
+        rule="RH <=> integral_0^T S(t) dt = O(log T) (mean bound)",
+        expected_kappa=Kappa.K1,
+        source="Titchmarsh (from training, medium-high confidence; verify)",
     ),
 )
