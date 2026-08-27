@@ -297,6 +297,7 @@ CORPUS_NODES: tuple[CorpusNode, ...] = (
             "RH is equivalent to the mean writhe being bounded: "
             "integral_0^T S(t) dt = O(log T)"
         ),
+        polarity=False,
     ),
     CorpusNode(
         key="N30",
@@ -773,5 +774,18 @@ CORPUS_EDGES: tuple[CorpusEdge, ...] = (
         rule="RH <=> integral_0^T S(t) dt = O(log T) (mean bound)",
         expected_kappa=Kappa.K1,
         source="Titchmarsh (from training, medium-high confidence; verify)",
+    ),
+    CorpusEdge(
+        key="E52",
+        edge_type=EdgeType.REFUTATION,
+        premise_keys=(),
+        conclusion_key="N29",
+        rule=(
+            "the mean value integral_0^T S(t) dt grows like O(T) (numerically "
+            "verified 2026-08-27: M(1000) = -1670 vs log(1000) ~ 6.9), NOT O(log T); "
+            "it is unconditional, so it cannot be equivalent to RH"
+        ),
+        expected_kappa=Kappa.K1,
+        source="numerical (mpmath, this session) + classical; premise corrected from O(log T) to O(T)",
     ),
 )
