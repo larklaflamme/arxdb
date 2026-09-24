@@ -123,13 +123,14 @@ break every edge referencing it.
 from arxdb.verification.schema import Edge, EdgeType, Kappa, Verdict
 ```
 
-The 7-way edge taxonomy (`EdgeType`):
+The 8-way edge taxonomy (`EdgeType`):
 
 | Type | Meaning | Default κ |
 |------|---------|-----------|
 | `DEFINITION` | a definition / axiom (zero-premise) | K_INF |
 | `DEDUCTION` | machine-checked logical step | K3 |
 | `NUMERICAL` | CAS-verified computation | K2 |
+| `SPECTRAL` | operator-theory claim (numpy/mpmath spectral check) | K2 |
 | `REDUCTION` | problem reduction | K2 |
 | `REFUTATION` | attacks another edge (defeasibility) | — |
 | `ANALOGY` | heuristic transfer | K0 |

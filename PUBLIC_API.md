@@ -173,7 +173,7 @@ as a max-min semiring (a chain is only as strong as its weakest step):
 |---|---------|-----------|
 | `K0` | conjecture / heuristic | analogy, or a rejected edge |
 | `K1` | cited / ELENCHUS-vetted | citation, reduction, refutation, unlisted definition |
-| `K2` | numerically verified | CAS identity check |
+| `K2` | numerically verified | CAS identity check, spectral (operator) check |
 | `K3` | formally verified | Z3 (or Lean, when a proof is supplied) |
 | `K_INF` | axiomatic ground | a roster-curated axiom |
 

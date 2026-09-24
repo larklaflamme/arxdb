@@ -5,7 +5,7 @@
 [![Status](https://img.shields.io/badge/status-production--ready-brightgreen)](https://github.com)
 [![Language](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org)
 [![Storage](https://img.shields.io/badge/storage-Go%20(Pebble)-00ADD8.svg)](https://go.dev)
-[![License](https://img.shields.io/badge/license-Proprietary-lightgrey.svg)]()
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 ---
 

@@ -75,17 +75,18 @@ The verification verdict is the moat. **Tiered verification (Option C):**
 
 - **LLM proposes** the edge and a candidate proof.
 - **ELENCHUS hard-veto predicates** reject non-sequiturs, category errors,
-  self-model leaks.
+  self-model leaks, and circularity (equivalence-class constraint).
 - **Formal checkers** (Lean, Z3, CAS) run *only on load-bearing edges*.
 - **κ-strength label** on every edge: how much can you stand on it?
 
-### Edge taxonomy (7 types)
+### Edge taxonomy (8 types)
 
 | Edge type | Inputs | Verification method | Default κ |
 |-----------|--------|---------------------|-----------|
 | `definition` / `axiom` | ∅ → C | canonical equivalence / system ground | κ∞ |
 | `deduction` | {Pᵢ} → C | formal checker (Lean/Z3) or ELENCHUS | κ1–κ3 |
 | `numerical` | {Pᵢ} → C | CAS cross-check (sympy/mpmath) | κ2 |
+| `spectral` | {Pᵢ} → C | operator-theory check (numpy/mpmath) | κ2 |
 | `reduction` | A ⟺ B or A ⇒ B | isomorphism / reduction proof | κ1–κ3 |
 | `refutation` | {Pᵢ} → ¬C or ¬E | counterexample / inconsistency proof | κ2–κ3 |
 | `analogy` / `conjecture` | {Pᵢ} → C | structural heuristic / LLM proposal | κ0 |
