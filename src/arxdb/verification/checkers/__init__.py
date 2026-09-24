@@ -11,6 +11,7 @@ from .base import BaseChecker, CheckerResult, CheckerTimeout, run_bounded
 from .cas_check import CasChecker
 from .lean_check import LeanChecker
 from .roster import ROSTER, RosterChecker, check_roster
+from .spectral_check import SpectralChecker
 from .z3_check import Z3Checker
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "CasChecker",
     "LeanChecker",
     "RosterChecker",
+    "SpectralChecker",
     "Z3Checker",
     "ROSTER",
     "check_roster",

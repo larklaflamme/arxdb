@@ -24,6 +24,7 @@ Dispatch table (EdgeType → checker → κ on pass):
     definition  → roster  → κ∞ (roster match) or κ1 (unlisted)
     deduction   → z3      → κ3   (lean when proof_bytes supplied)
     numerical   → cas     → κ2
+    spectral    → spectral → κ2   (numpy/mpmath spectral claims)
     reduction   → (none)  → κ1   (ELENCHUS-vetted only)
     refutation  → (none)  → κ1   (ELENCHUS-vetted only)
     analogy     → (none)  → κ0   (structural heuristic only)
@@ -48,6 +49,7 @@ from .checkers.base import CheckerResult
 from .checkers.cas_check import CasChecker
 from .checkers.lean_check import LeanChecker
 from .checkers.roster import RosterChecker
+from .checkers.spectral_check import SpectralChecker
 from .checkers.z3_check import Z3Checker
 from .elenchus import ElenchusResult, evaluate
 from .schema import EdgeType, Kappa, Node, Verdict
@@ -105,6 +107,8 @@ def _checker_for(edge_type: EdgeType, proof_bytes: bytes | None):
         return LeanChecker() if proof_bytes else Z3Checker()
     if edge_type == EdgeType.NUMERICAL:
         return CasChecker()
+    if edge_type == EdgeType.SPECTRAL:
+        return SpectralChecker()
     return None
 
 

@@ -30,6 +30,7 @@ class EdgeType(str, Enum):
     DEFINITION = "definition"
     DEDUCTION = "deduction"
     NUMERICAL = "numerical"
+    SPECTRAL = "spectral"
     REDUCTION = "reduction"
     REFUTATION = "refutation"
     ANALOGY = "analogy"
