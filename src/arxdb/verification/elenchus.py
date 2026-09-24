@@ -200,6 +200,119 @@ def _empty_rule(
     return None
 
 
+# --- equivalence classes (circularity constraint) ---------------------------
+
+# Edge types that derive a conclusion from premises (proof edges). Circular
+# reasoning — using a statement equivalent to the conclusion as a premise —
+# is a hard veto on these. REDUCTION is included: "RH reduces to X" is circular
+# when X is itself RH-equivalent.
+CIRCULARITY_TYPES = (
+    EdgeType.DEDUCTION,
+    EdgeType.NUMERICAL,
+    EdgeType.SPECTRAL,
+    EdgeType.REDUCTION,
+)
+
+
+@dataclass(frozen=True)
+class EquivalenceClass:
+    """A set of statements known to be mutually equivalent.
+
+    If a proof edge uses one member as a premise to derive another member of
+    the same class, that is circular: the premise already entails the
+    conclusion (they are equivalent), so the edge cannot contribute to a proof
+    of any member of the class. This is the "constraint" layer — a registry of
+    forbidden-premise sets, seeded with the RH equivalence class.
+    """
+
+    name: str
+    signatures: tuple[str, ...]  # case-insensitive regex patterns
+
+
+# The RH equivalence class: RH ⟺ Λ=0 ⟺ κ≥0 ⟺ λ_n≥0 ⟺ H_0 real zeros.
+# None of these may be used as a premise to prove another, because they are
+# all equivalent to RH — assuming one is assuming RH.
+RH_EQUIVALENCE = EquivalenceClass(
+    name="rh_equivalence",
+    signatures=(
+        # RH itself
+        r"riemann\s*hypothesis",
+        r"\brh\b",
+        r"all\s*(?:non[-\s]?trivial\s*)?zeros.{0,30}critical\s*line",
+        # de Bruijn–Newman constant Λ = 0
+        r"de\s*bruijn",
+        r"newman\s*constant",
+        r"\bλ\s*=\s*0\b",
+        r"\blambda\s*=\s*0\b",
+        # curvature κ ≥ 0
+        r"curvature.{0,20}non\s*negative",
+        r"\bκ\s*(?:≥|>=|>)\s*0\b",
+        r"\bkappa\s*(?:≥|>=|>)\s*0\b",
+        # Li coefficients λ_n ≥ 0
+        r"li\s*coefficients",
+        r"li'?s\s*criterion",
+        r"\bλ_?n\s*(?:≥|>=|>)\s*0\b",
+        r"\blambda_?n\s*(?:≥|>=|>)\s*0\b",
+        # H_0 real zeros (Pólya criterion)
+        r"h_?0\b.{0,30}real\s*zeros",
+        r"polya\s*criterion",
+    ),
+)
+
+# The registry of known equivalence classes. Extend this to add new
+# forbidden-premise sets (e.g. a future class of statements equivalent to
+# some other open problem).
+EQUIVALENCE_CLASSES: tuple[EquivalenceClass, ...] = (RH_EQUIVALENCE,)
+
+
+def _classify(claim: str) -> set[str]:
+    """Return the names of equivalence classes the claim belongs to."""
+    classes: set[str] = set()
+    for eq in EQUIVALENCE_CLASSES:
+        for sig in eq.signatures:
+            if re.search(sig, claim, re.IGNORECASE):
+                classes.add(eq.name)
+                break
+    return classes
+
+
+def _circularity(
+    premises: Sequence[Node],
+    conclusion: Node,
+    rule: str,
+    edge_type: EdgeType,
+) -> Flag | None:
+    """HARD_VETO: a proof edge that uses a statement equivalent to its
+    conclusion as a premise (circular reasoning within a known equivalence
+    class).
+
+    This is the "constraint" predicate: it encodes the fact that certain
+    statements are mutually equivalent, and so none may serve as a premise in
+    a proof of another. For RH, the class is {RH, Λ=0, κ≥0, λ_n≥0, H_0 real
+    zeros} — all equivalent to RH, so assuming any of them is assuming RH.
+    """
+    if not premises:
+        return None
+    if edge_type not in CIRCULARITY_TYPES:
+        return None
+    concl_classes = _classify(conclusion.claim)
+    if not concl_classes:
+        return None
+    for p in premises:
+        shared = concl_classes & _classify(p.claim)
+        if shared:
+            return Flag(
+                name="circularity",
+                severity=Verdict.HARD_VETO,
+                message=(
+                    f"conclusion and a premise both belong to equivalence "
+                    f"class(es) {sorted(shared)}: using an equivalent "
+                    f"statement as a premise is circular"
+                ),
+            )
+    return None
+
+
 # A predicate is a callable (premises, conclusion, rule, edge_type) -> Flag|None.
 Predicate = Callable[
     [Sequence[Node], Node, str, EdgeType], Flag | None
@@ -210,6 +323,7 @@ PREDICATES: tuple[Predicate, ...] = (
     _self_model_leak,
     _non_sequitur,
     _empty_rule,
+    _circularity,
 )
 
 

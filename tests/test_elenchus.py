@@ -172,3 +172,83 @@ def test_hard_veto_dominates_soft_flag():
     names = _flag_names(r)
     assert "category_error" in names
     assert "empty_rule" in names
+
+
+# --- circularity (HARD_VETO) ---
+
+def test_circularity_hard_veto():
+    """Using Λ=0 (RH-equivalent) as a premise to prove RH is circular."""
+    r = evaluate(
+        premises=[_node("the de Bruijn-Newman constant Λ equals zero", "math")],
+        conclusion=_node("the Riemann Hypothesis holds", "math"),
+        rule="modus ponens",
+        edge_type=EdgeType.DEDUCTION,
+    )
+    assert r.verdict == Verdict.HARD_VETO
+    assert "circularity" in _flag_names(r)
+
+
+def test_circularity_reverse_direction():
+    """Using RH as a premise to prove Λ=0 is equally circular."""
+    r = evaluate(
+        premises=[_node("the Riemann Hypothesis holds", "math")],
+        conclusion=_node("the de Bruijn-Newman constant Λ equals zero", "math"),
+        rule="modus ponens",
+        edge_type=EdgeType.DEDUCTION,
+    )
+    assert "circularity" in _flag_names(r)
+
+
+def test_circularity_li_coefficients():
+    """λ_n ≥ 0 (Li's criterion) is RH-equivalent, so it cannot prove RH."""
+    r = evaluate(
+        premises=[_node("the Li coefficients λ_n are nonnegative", "math")],
+        conclusion=_node("the Riemann Hypothesis holds", "math"),
+        rule="modus ponens",
+        edge_type=EdgeType.DEDUCTION,
+    )
+    assert "circularity" in _flag_names(r)
+
+
+def test_circularity_curvature():
+    """κ ≥ 0 is RH-equivalent, so it cannot prove RH."""
+    r = evaluate(
+        premises=[_node("the curvature κ is nonnegative", "math")],
+        conclusion=_node("the Riemann Hypothesis holds", "math"),
+        rule="modus ponens",
+        edge_type=EdgeType.DEDUCTION,
+    )
+    assert "circularity" in _flag_names(r)
+
+
+def test_circularity_skips_empty_premises():
+    """A definition (no premises) cannot be circular."""
+    r = evaluate(
+        premises=[],
+        conclusion=_node("the Riemann Hypothesis holds", "math"),
+        rule="definition",
+        edge_type=EdgeType.DEFINITION,
+    )
+    assert "circularity" not in _flag_names(r)
+
+
+def test_circularity_skips_citation():
+    """Recording the known equivalence RH ⟺ Λ=0 is a citation, not circular."""
+    r = evaluate(
+        premises=[_node("the Riemann Hypothesis holds", "math")],
+        conclusion=_node("the de Bruijn-Newman constant Λ equals zero", "math"),
+        rule="Newman 1976",
+        edge_type=EdgeType.CITATION,
+    )
+    assert "circularity" not in _flag_names(r)
+
+
+def test_circularity_passes_when_not_equivalent():
+    """A premise outside the RH class does not trigger circularity."""
+    r = evaluate(
+        premises=[_node("the explicit formula holds", "math")],
+        conclusion=_node("the Riemann Hypothesis holds", "math"),
+        rule="modus ponens",
+        edge_type=EdgeType.DEDUCTION,
+    )
+    assert "circularity" not in _flag_names(r)
