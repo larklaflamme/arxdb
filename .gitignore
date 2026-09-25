@@ -17,3 +17,4 @@ dist/
 # Tooling
 .pytest_cache/
 .venv/
+data-backup/
