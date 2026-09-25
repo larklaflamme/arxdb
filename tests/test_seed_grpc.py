@@ -2,7 +2,7 @@
 
 The drop-in claim (PHASE6_PLAN.md §10) extended to the seed script: the same
 `seed()` function that ingests the RH corpus into in-process SQLite must also
-ingest it into a live Go/Pebble daemon over gRPC, producing the same 52 edges
+ingest it into a live Go/Pebble daemon over gRPC, producing the same 58 edges
 with the same honest κ distribution.
 
 This test starts a live `arxdbd` daemon (via grpc_helpers) and drives the seed
@@ -40,26 +40,28 @@ def grpc(tmp_path):
     stop_daemon(proc)
 
 
-def test_seed_ingests_fifty_two_edges_over_grpc(grpc):
+def test_seed_ingests_fifty_eight_edges_over_grpc(grpc):
     """The full RH corpus lands in Pebble via gRPC with honest κ."""
     _, pub = generate_keypair()
     rows = seed(grpc, pub)
 
-    assert len(rows) == 52
+    assert len(rows) == 58
     # Every edge committed (no REJECTED), and its κ matched the corpus's
     # declared expectation.
     assert all(r.status == "MATCH" for r in rows)
     assert all(r.actual_kappa is not None for r in rows)
 
-    # The honest κ distribution: 21 cited/established (K1), 31 model/conjecture (K0).
+    # The honest κ distribution: 24 cited/established (K1), 31 model/conjecture (K0), 3 spectral (K2).
     k1 = sum(1 for r in rows if r.actual_kappa.value == "K1")
     k0 = sum(1 for r in rows if r.actual_kappa.value == "K0")
-    assert k1 == 21
+    assert k1 == 24
     assert k0 == 31
+    k2 = sum(1 for r in rows if r.actual_kappa.value == "K2")
+    assert k2 == 3
 
-    # The graph index sees all 52 edges and their 30 nodes.
-    assert len(grpc.graph.all_edges()) == 52
-    assert len(grpc.graph.all_nodes()) == 30
+    # The graph index sees all 58 edges and their 36 nodes.
+    assert len(grpc.graph.all_edges()) == 58
+    assert len(grpc.graph.all_nodes()) == 36
 
 
 def test_seed_is_idempotent_over_grpc(grpc):
@@ -70,5 +72,5 @@ def test_seed_is_idempotent_over_grpc(grpc):
 
     assert all(r.status == "MATCH" for r in first)
     assert all(r.status == "SKIP" for r in second)
-    # Still exactly 52 edges — no duplicates from the second pass.
-    assert len(grpc.graph.all_edges()) == 52
+    # Still exactly 58 edges — no duplicates from the second pass.
+    assert len(grpc.graph.all_edges()) == 58

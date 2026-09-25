@@ -307,6 +307,37 @@ CORPUS_NODES: tuple[CorpusNode, ...] = (
         ),
         polarity=False,
     ),
+    CorpusNode(
+        key="N31",
+        claim=(
+            "RH is equivalent to: all zeros of det(1-L_beta) lie on "
+            "Re(beta)=1/4 (Mayer's transfer-operator theorem)"
+        ),
+    ),
+    CorpusNode(
+        key="N32",
+        claim="self_adjoint bessel_kernel(-0.5, 60)",
+    ),
+    CorpusNode(
+        key="N33",
+        claim="complex_spectrum bessel_kernel(-0.5+2j, 40)",
+    ),
+    CorpusNode(
+        key="N34",
+        claim=(
+            "low_rank bessel_kernel(-0.5+2j, 40) - "
+            "bessel_kernel(-0.5+2j, 40).conj().T"
+        ),
+    ),
+    CorpusNode(
+        key="N35",
+        claim="the first nontrivial zero rho_1 has multiplicity 1",
+    ),
+    CorpusNode(
+        key="N36",
+        claim="the spectrum of L_beta leaves the real axis linearly in gamma",
+    ),
+
 )
 
 
@@ -788,4 +819,59 @@ CORPUS_EDGES: tuple[CorpusEdge, ...] = (
         expected_kappa=Kappa.K1,
         source="numerical (mpmath, this session) + classical; premise corrected from O(log T) to O(T)",
     ),
+    CorpusEdge(
+        key="E53",
+        edge_type=EdgeType.CITATION,
+        premise_keys=(),
+        conclusion_key="N31",
+        rule="Mayer's theorem: det(1-L_beta) = zeta(2beta)/zeta(2beta+1); RH <=> zeros of det(1-L_beta) on Re(beta)=1/4",
+        expected_kappa=Kappa.K1,
+        source="surface ontology (2026-09-22), Mayer transfer operator",
+    ),
+    CorpusEdge(
+        key="E54",
+        edge_type=EdgeType.SPECTRAL,
+        premise_keys=(),
+        conclusion_key="N32",
+        rule="L_beta is self-adjoint for real beta (Mayer transfer operator, nu=-1/2)",
+        expected_kappa=Kappa.K2,
+        source="spectral checker: hermitian_err=0.0, max_im_eig=0.0",
+    ),
+    CorpusEdge(
+        key="E55",
+        edge_type=EdgeType.SPECTRAL,
+        premise_keys=(),
+        conclusion_key="N33",
+        rule="L_beta has complex spectrum off the real axis (broken PT-symmetry, nu=-1/2+2i)",
+        expected_kappa=Kappa.K2,
+        source="spectral checker: max_im_eig=5.77",
+    ),
+    CorpusEdge(
+        key="E56",
+        edge_type=EdgeType.SPECTRAL,
+        premise_keys=(),
+        conclusion_key="N34",
+        rule="the defect D = L_beta - L_beta* has a dominant singular value (sigma1/sigma2 = 36.5)",
+        expected_kappa=Kappa.K2,
+        source="spectral checker: ratio_s1_s2=36.53",
+    ),
+    CorpusEdge(
+        key="E57",
+        edge_type=EdgeType.CITATION,
+        premise_keys=(),
+        conclusion_key="N35",
+        rule="mpmath dps=30: zeta'(rho_1) != 0; residue of zeta'(2b)/zeta(2b) at rho_1 = 1",
+        expected_kappa=Kappa.K1,
+        source="surface ontology (2026-09-22)",
+    ),
+    CorpusEdge(
+        key="E58",
+        edge_type=EdgeType.CITATION,
+        premise_keys=(),
+        conclusion_key="N36",
+        rule="mpmath dps=30: Im(spectrum) ~ 0.58*gamma, linear in gamma",
+        expected_kappa=Kappa.K1,
+        source="surface ontology (2026-09-22)",
+    ),
+
 )

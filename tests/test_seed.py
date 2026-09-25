@@ -8,7 +8,7 @@ report prints.
 v0.4: the corpus grew from the phaser thread (9 nodes/9 edges) to the full RH
 map (23 nodes/23 edges) spanning five threads. v0.5: cross-thread bridges and
 three hub nodes (positivity / primes-as-spectrum / balance point) connect the
-map into a single component (30 nodes/52 edges). The count assertions below
+map into a single component (36 nodes/58 edges). The count assertions below
 track that growth.
 """
 
@@ -38,13 +38,13 @@ def _storage(tmp_root, keypair) -> Storage:
 
 # --- corpus structure -------------------------------------------------------
 
-def test_corpus_has_thirty_nodes_and_fifty_two_edges():
-    assert len(CORPUS_NODES) == 30
-    assert len(CORPUS_EDGES) == 52
+def test_corpus_has_thirty_six_nodes_and_fifty_eight_edges():
+    assert len(CORPUS_NODES) == 36
+    assert len(CORPUS_EDGES) == 58
     assert [n.key for n in CORPUS_NODES] == [
         "N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9",
         "N10", "N11", "N12", "N13", "N14", "N15", "N16", "N17",
-        "N18", "N19", "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29", "N30",
+        "N18", "N19", "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29", "N30", "N31", "N32", "N33", "N34", "N35", "N36",
     ]
     assert [e.key for e in CORPUS_EDGES] == [
         "E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9",
@@ -53,7 +53,7 @@ def test_corpus_has_thirty_nodes_and_fifty_two_edges():
         "E26", "E27", "E28", "E29", "E30", "E31", "E32", "E33",
         "E34", "E35", "E36", "E37", "E38", "E39", "E40", "E41",
         "E42", "E43", "E44", "E45", "E46", "E47", "E48", "E49",
-        "E50", "E51", "E52",
+        "E50", "E51", "E52", "E53", "E54", "E55", "E56", "E57", "E58",
     ]
 
 
@@ -110,7 +110,7 @@ def test_seed_all_edges_match(tmp_root, keypair):
     s = _storage(tmp_root, keypair)
     _, pub = keypair
     rows = seed(s, pub)
-    assert len(rows) == 52
+    assert len(rows) == 58
     assert all(r.status == "MATCH" for r in rows)
     assert all(r.actual_kappa == r.expected_kappa for r in rows)
 
@@ -120,7 +120,7 @@ def test_seed_idempotent(tmp_root, keypair):
     _, pub = keypair
     seed(s, pub)
     rows2 = seed(s, pub)
-    assert len(rows2) == 52
+    assert len(rows2) == 58
     assert all(r.status == "SKIP" for r in rows2)
 
 
@@ -182,7 +182,7 @@ def test_seed_edges_resolve_to_skye(tmp_root, keypair):
 
     roster = Roster(entries={"Skye": pub})
     results = verify_seed_attestation(s, roster, pub)
-    assert len(results) == 52
+    assert len(results) == 58
     assert all(ok for _, ok, _ in results)
     assert all(agent == "Skye" for _, _, agent in results)
 
@@ -216,8 +216,8 @@ def test_full_ceremony_persists_roster_and_anchor(tmp_root, keypair):
     seed(s, pub)
     rec = persist_anchor(s, roster, tmp_root)
 
-    # root_hash covers roster (entry 0) + 52 edges = 53 entries.
-    assert rec.entry_count == 53
+    # root_hash covers roster (entry 0) + 58 edges = 59 entries.
+    assert rec.entry_count == 59
     assert rec.roster_hash == roster.roster_hash()
     assert verify_history(s, rec.root_hash) is True
 
